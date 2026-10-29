@@ -1,0 +1,21 @@
+{
+  "model": "m4-multilabel-v1",
+  "labels": [
+    "T1190",
+    "T1041",
+    "T1567",
+    "T1204",
+    "T1486",
+    "T1566"
+  ],
+  "micro_f1": 0.7484,
+  "macro_f1": 0.2516,
+  "hamming": 0.1162,
+  "subset_acc": 0.6451,
+  "n_train": 91617,
+  "n_test": 22904,
+  "oracle": {
+    "micro_f1": 0.9994,
+    "macro_f1": 0.4997
+  }
+}
