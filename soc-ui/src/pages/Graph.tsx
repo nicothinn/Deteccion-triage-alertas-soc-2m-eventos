@@ -16,12 +16,17 @@ const ECOLOR: Record<string, string> = {
 const NEON = "#00ff41";
 const GLOW = "0 0 6px rgba(0,255,65,0.9)";
 const NODE_BG = "#020604";
-const SUGGEST: { label: string; node: string; desc: string }[] = [
-  { label: "C2 · 100.64.39.157", node: "100.64.39.157", desc: "susp 0.99 · 65 incident + 50 flow · posible C2/exfil" },
-  { label: "Lateral · USER-0719", node: "ORG-0004/user:USER-0719", desc: "99 hosts distintos · movimiento lateral" },
-  { label: "Lateral · USER-0728", node: "ORG-0004/user:USER-0728", desc: "60 hosts distintos · segunda credencial" },
-  { label: "Víctima · 10.187.253.125", node: "ORG-0005/10.187.253.125", desc: "susp 0.92 · 12k incident links · host golpeado" },
-  { label: "DNS · vcenter", node: "ORG-0005/vcenter", desc: "7.5k resolves · caza DNS tunneling" },
+const SUGGEST: { label: string; node: string; desc: string; reading: string }[] = [
+  { label: "C2 · 100.64.39.157", node: "100.64.39.157", desc: "susp 0.99 · 65 incident + 50 flow · posible C2/exfil",
+    reading: "Una IP externa contactada por 41 vecinos internos y marcada en 65 incidentes: patrón clásico de C2. Mira cuántos hosts distintos le hablan por NETWORK_FLOW y en qué ventana; eso es lo que M3 resume en n_users/frac_fw." },
+  { label: "Lateral · USER-0719", node: "ORG-0004/user:USER-0719", desc: "99 hosts distintos · movimiento lateral",
+    reading: "Una sola credencial actuando en 99 máquinas: imposible de ver fila por fila. Cada arista es un acceso; si muchos caen en ±5 min, M3 lo cuenta como n_neigh alto y dispara." },
+  { label: "Lateral · USER-0728", node: "ORG-0004/user:USER-0728", desc: "60 hosts distintos · segunda credencial",
+    reading: "Segunda credencial en movimiento (60 hosts). Compara con USER-0719: ¿atraviesan los mismos hosts? Eso es propagación coordinada." },
+  { label: "Víctima · 10.187.253.125", node: "ORG-0005/10.187.253.125", desc: "susp 0.92 · 12k incident links · host golpeado",
+    reading: "Al revés que los anteriores: aquí el centro es la víctima, con 12k incident-links entrando. Copia un incident_id y ábrelo en Incidente para ver la cadena y el reporte." },
+  { label: "DNS · vcenter", node: "ORG-0005/vcenter", desc: "7.5k resolves · caza DNS tunneling",
+    reading: "Todo el DNS pasa por aquí (7.5k resolves). Un pico de subdominios raros o consultas fuera de horario es la huella del tunneling/DGA." },
 ];
 
 export default function Graph() {
@@ -94,6 +99,30 @@ export default function Graph() {
   return (
     <div>
       <h2 className="text-lg font-semibold text-[#00ff41]" style={{ textShadow: "0 0 8px rgba(0,255,65,0.7)" }}>Proveniencia_ <span className="text-xs font-normal text-mut">(1 salto, layout estrella)</span></h2>
+      <section className="mt-2 rounded-md border border-line bg-panel p-4">
+        <h3 className="font-semibold">Qué estás viendo</h3>
+        <p className="mt-1 text-sm text-txt/90">
+          El nodo ★ es tu punto de partida y cada punto verde es una máquina o credencial que habló con él
+          (1 salto en el grafo de 1.7M aristas). <b className="text-[#ff5c7a]">Rojo = suspicion_score &gt; 0</b>,
+          verde = tráfico normal. Primer anillo = los 18 vecinos más sospechosos, segundo anillo = el resto.
+        </p>
+        <details className="mt-2 text-sm">
+          <summary className="cursor-pointer text-[#00ff41]">Cómo leerlo (3 reglas)</summary>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-txt/90">
+            <li><b>Concentración:</b> muchos vecinos del mismo tipo en poco tiempo = campaña, no ruido. M3 cuenta eso en ±5 min.</li>
+            <li><b>Color de arista:</b> USER_ACTION (accesos) y NETWORK_FLOW (conexiones) delatan lateralidad y C2; INCIDENT_LINK (rojo) = ya confirmado en un incidente.</li>
+            <li><b>Sospecha:</b> el borde rojo hereda el suspicion del motor Precinct, no del modelo — úsalo para priorizar, confirma con Cola/Incidente.</li>
+          </ul>
+        </details>
+        <details className="mt-1 text-sm">
+          <summary className="cursor-pointer text-[#00ff41]">Qué hace M3 con este vecindario</summary>
+          <p className="mt-1 text-txt/90">
+            Por cada evento M3 junta lo que ves aquí en ±5 min y calcula 8 números (nº vecinos, nº hosts, nº usuarios,
+            % bloqueos, % firewall, % fallos de login, tipos distintos, minutos de span) + XGBoost.
+            F1-macro 0.719, recall malicious 0.96. Botón “Consultar vecindario M3” en la Cola para probarlo con un artifact_id real.
+          </p>
+        </details>
+      </section>
       <form className="mt-2 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); setQ(node); }}>
         <input value={node} onChange={(e) => setNode(e.target.value)}
           placeholder="ORG-0004/user:USER-0719 o ORG-0004/HOST-0032"
@@ -111,6 +140,16 @@ export default function Graph() {
           ))}
         </div>
         <p className="mono mt-1 text-xs text-mut">{SUGGEST.find((s) => s.node === q)?.desc ?? "nodo manual"}</p>
+        {(() => {
+          const sel = SUGGEST.find((s) => s.node === q);
+          return sel ? (
+            <p className="mt-1 rounded border border-[#0f3d1e] bg-black p-2 text-sm text-[#00ff41]">
+              <b>Qué mirar aquí:</b> {sel.reading}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-mut">Nodo manual: busca anillos densos del mismo tipo de arista y bordes rojos; eso es lo que M3 cuantifica.</p>
+          );
+        })()}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="ml-2 text-xs text-mut">Nodos:</span>
