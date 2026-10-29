@@ -22,7 +22,7 @@
 Security Operations Centers drown in alerts: our capture holds 2,011,674 events in six days from 4 organizations, 19 products and 12 vendors, with only 0.38\% malicious (imbalance ratio 245:1).
 We frame alert triage as supervised three-class classification (benign / suspicious / malicious) with temporal generalization and deploy it as a SOC console.
 M1, a cost-sensitive LightGBM over tabular fields, reaches macro-F1 0.599 (train 112,848 / test 28,212, temporal 80/20 split) but malicious recall stays near zero (0.0045). M2 (TF-IDF 5k + XGBoost over log text) reaches macro-F1 0.708 with malicious recall 0.970 and PR-AUC$_{mal}$ 0.826; M3 (neighborhood aggregation $\pm$5\,min + XGBoost, SAGE-mean 1-hop) reaches macro-F1 0.719 with malicious recall 0.962 and PR-AUC$_{mal}$ 0.815. Both use the same temporal protocol (train 24,000 / test 6,000).
-A FastAPI backend (\texttt{/score}, \texttt{/score\_batch}, \texttt{/queue}, \texttt{/incident}) serves all three behind a React triage console (queue, incident chain, MITRE coverage) with a Streamlit fallback for the 20-minute demo.
+A FastAPI backend (\texttt{/score}, \texttt{/score\_batch}, \texttt{/queue}, \texttt{/incident}) serves all three behind a React triage console (queue, incident chain, MITRE coverage) for the 20-minute demo.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -37,7 +37,7 @@ A modern SOC ingests syslog, Windows auditing, VPC flows and endpoint telemetry 
 
 We address \textbf{alert triage}: given one security event, predict its tier and return calibrated probabilities, ATT\&CK hints and an operational decision, in $<$50\,ms for queue ranking and with a batch path for backfill. Ground truth comes from Precinct's automated correlation (no per-event analyst verdict), so labels are a strong but imperfect oracle: disposition is \texttt{Unprocessed} for 2,005,877/2,011,674 signals and analyst-confirmed states are rare. We therefore optimize macro-F1 and per-class PR-AUC, never accuracy.
 
-\textbf{Contributions:} (1) a reproducible pipeline over \texttt{witfoo/precinct6-cybersecurity} v2.1.0; (2) three preprocessing families and three models with complexity analysis; (3) a deployed triage console (FastAPI + React, Streamlit fallback).
+\textbf{Contributions:} (1) a reproducible pipeline over \texttt{witfoo/precinct6-cybersecurity} v2.1.0; (2) three preprocessing families and three models with complexity analysis; (3) a deployed triage console (FastAPI + React).
 
 %----------------------------------------------------------------
 \section{Dataset: obtainment and description}
@@ -185,7 +185,7 @@ macro avg & --- & --- & \textbf{0.5991} & --- \\
 \section{Deployment}
 \label{sec:deploy}
 
-\texttt{uv run uvicorn app.main:app} serves \texttt{models/m1.pkl} lazily: \texttt{GET /health}, \texttt{/info}, \texttt{/stats} (fixed EDA counts, no 2M scan), \texttt{GET /queue?label\&limit} (malicious-first), \texttt{GET /incident/\{id\}} (events + \texttt{attack\_reports} row), \texttt{POST /score} (single, triage rule) and \texttt{POST /score\_batch} ($\le$500). The React console (\texttt{soc-ui/}: \texttt{npm run dev}, pages Cola / Incidente with ReactFlow chain / Cobertura MITRE with ECharts) consumes only these endpoints; a Streamlit fallback (\texttt{app/streamlit\_app.py} + \texttt{pages/}) calls the pickle directly for rooms without Node. Reproduce: \texttt{uv sync \&\& uv run python experiments/m1\_tabular/train.py --n 200000}. Environment is pinned in \texttt{uv.lock} (Python $\ge$3.10, LightGBM, XGBoost, scikit-learn, FastAPI, Streamlit).
+\texttt{uv run uvicorn app.main:app} serves \texttt{models/m1.pkl} lazily: \texttt{GET /health}, \texttt{/info}, \texttt{/stats} (fixed EDA counts, no 2M scan), \texttt{GET /queue?label\&limit} (malicious-first), \texttt{GET /incident/\{id\}} (events + \texttt{attack\_reports} row), \texttt{POST /score} (single, triage rule) and \texttt{POST /score\_batch} ($\le$500). The React console (\texttt{soc-ui/}: \texttt{npm run dev}, pages Cola / Incidente with ReactFlow chain / Cobertura MITRE with ECharts) consumes only these endpoints. Reproduce: \texttt{uv sync \&\& uv run python experiments/m1\_tabular/train.py --n 200000}. Environment is pinned in \texttt{uv.lock} (Python $\ge$3.10, LightGBM, XGBoost, scikit-learn, FastAPI).
 
 %----------------------------------------------------------------
 \section{Limitations}
