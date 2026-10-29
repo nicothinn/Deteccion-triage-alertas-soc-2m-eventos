@@ -92,18 +92,52 @@ Endpoints: `GET /health /info /stats /queue?label&limit /incident/{id} /graph/ve
 
 Lectura: M1 recupera suspicious (R 0.96) pero pierde malicious; M2/M3 cazan malicious (R ~0.97) a costa de suspicious (R 0.16/0.19). Ver [`reports/paper.pdf`](reports/paper.pdf) sec 5-6.
 
-## Estructura
+## Estructura (árbol)
 
 ```
-app/main.py, app/streamlit_app.py, app/pages/   # API + fallback
-soc-ui/src/                                      # React (Cola/Incidente/Grafo/Cobertura/Lab/Panorama)
-experiments/m1_tabular|m2_texto|m3_grafo/train.py
-models/m*.pkl + m*_metrics.json                  # pkl NO en git, metrics sí
-data/signals/, data/graph/, data/build/, data/reference/   # parquets NO en git
-notebooks/eda_precinct6.ipynb, m1_variants_mlflow.ipynb
-reports/paper.tex + paper.pdf + figures/         # 4 PDFs
-docs/  guia_proyecto, referencias, glosario, documentacion_end_to_end
+.                                   # raíz: Dockerfile, compose.yml, pyproject.toml, uv.lock
+├── app/                            # FastAPI :8000 + Streamlit fallback
+│   ├── main.py                     # /health /score /queue /incident /score_graph /explain /feedback
+│   ├── streamlit_app.py            # fallback sin Node
+│   └── pages/                      # 02_Incidente.py, 03_Cobertura.py
+├── soc-ui/                         # React+TS (Cola/Incidente/Grafo/Cobertura/Lab/Panorama)
+│   └── src/pages/                  # Queue.tsx Incident.tsx Graph.tsx Coverage.tsx Lab.tsx Panorama.tsx
+├── src/
+│   ├── dataset.py                  # carga local parquet
+│   ├── explorar.py                 # util EDA rápido
+│   └── eda_report.py               # EDA completo → reports/eda/ (checklist 2026)
+├── experiments/
+│   ├── m1_tabular/train.py         # LightGBM tabular → models/m1.pkl
+│   ├── m2_texto/train.py           # TF-IDF 5k + XGBoost → models/m2.pkl
+│   ├── m3_grafo/train.py           # vecindario ±5min + XGBoost → models/m3.pkl
+│   └── m1_tabular/leaderboard.csv  # 8 variantes MLflow
+├── models/                         # m*.pkl NO en git · m*_metrics.json + m*_meta.json sí
+├── data/                           # parquets NO en git (ver §1)
+│   ├── signals/ + graph/ + build/ + reference/
+│   └── README_HF.md                # data card original WitFoo
+├── notebooks/
+│   ├── eda_precinct6.ipynb         # EDA inicial (12 secciones)
+│   └── m1_variants_mlflow.ipynb    # 8 variantes × F1/F2/F3
+├── reports/
+│   ├── paper.tex / paper.pdf       # IEEE 3 pp
+│   ├── figures/                    # 4 PDFs (labels, temporal, confusion, architecture)
+│   └── eda/                        # resumen_eda.md + diccionario_datos.csv (generado)
+├── docs/                           # índice abajo
+└── papers/                         # PDFs locales arXiv (NO en git, ver links)
 ```
+
+## Índice de documentación
+
+| Quiero... | Lee |
+|---|---|
+| Entenderlo todo end-to-end (recomendado) | [`docs/documentacion_end_to_end.md`](docs/documentacion_end_to_end.md) |
+| No soy técnico | [`docs/glosario_soc_no_tecnico.md`](docs/glosario_soc_no_tecnico.md) |
+| Qué datos son y sus límites | [`docs/datasheet.md`](docs/datasheet.md) (Gebru) + [`reports/eda/resumen_eda.md`](reports/eda/resumen_eda.md) + [`reports/eda/diccionario_datos.csv`](reports/eda/diccionario_datos.csv) |
+| Qué hace cada modelo | [`docs/model-card-m1.md`](docs/model-card-m1.md) · [`docs/model-card-m2.md`](docs/model-card-m2.md) · [`docs/model-card-m3.md`](docs/model-card-m3.md) |
+| Cómo se despliega y qué cambió | [`docs/factsheet-changelog.md`](docs/factsheet-changelog.md) |
+| Consigna del curso | [`docs/guia_proyecto.md`](docs/guia_proyecto.md) (`contexto/course_project_guide.pdf`) |
+| Literatura del primer entregable | [`docs/referencias_primer_entregable.md`](docs/referencias_primer_entregable.md) |
+| Paper final | [`reports/paper.pdf`](reports/paper.pdf) ([`.tex`](reports/paper.tex)) |
 
 ## Referencias (todas)
 
