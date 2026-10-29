@@ -1,4 +1,4 @@
-import { ReactFlow } from "@xyflow/react";
+import { Background, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -6,13 +6,16 @@ import { api } from "../lib/api";
 
 const TYPES = ["USER_ACTION", "NETWORK_FLOW", "AUDIT_EVENT", "EVENT", "DNS_RESOLVE", "INCIDENT_LINK"];
 const ECOLOR: Record<string, string> = {
-  USER_ACTION: "#3aa88f",
-  NETWORK_FLOW: "#6aa8ff",
-  AUDIT_EVENT: "#d99a2b",
-  EVENT: "#8a96a6",
-  DNS_RESOLVE: "#b07fe8",
-  INCIDENT_LINK: "#d64545",
+  USER_ACTION: "#00ff41",
+  NETWORK_FLOW: "#00c853",
+  AUDIT_EVENT: "#7cfc00",
+  EVENT: "#2e7d32",
+  DNS_RESOLVE: "#64ffda",
+  INCIDENT_LINK: "#ff003c",
 };
+const NEON = "#00ff41";
+const GLOW = "0 0 6px rgba(0,255,65,0.9)";
+const NODE_BG = "#020604";
 const SUGGEST: { label: string; node: string; desc: string }[] = [
   { label: "C2 · 100.64.39.157", node: "100.64.39.157", desc: "susp 0.99 · 65 incident + 50 flow · posible C2/exfil" },
   { label: "Lateral · USER-0719", node: "ORG-0004/user:USER-0719", desc: "99 hosts distintos · movimiento lateral" },
@@ -44,9 +47,10 @@ export default function Graph() {
         position: { x: 0, y: 0 },
         data: { label: `★ ${q.split("/").pop()}` },
         style: {
-          borderColor: "#d99a2b", borderWidth: 3, width: 220,
+          borderColor: NEON, borderWidth: 3, width: 220,
+          background: "#001a08", color: NEON,
           fontFamily: "monospace", fontSize: 12, whiteSpace: "pre-line" as const,
-          background: "#2a2410",
+          textShadow: GLOW, boxShadow: "0 0 18px rgba(0,255,65,0.45)",
         },
       },
       ...vis.map((n, i) => {
@@ -55,14 +59,18 @@ export default function Graph() {
         const per = ring === 0 ? Math.min(vis.length, 18) : vis.length - 18;
         const ang = (2 * Math.PI * k) / Math.max(per, 1) - Math.PI / 2;
         const R = ring === 0 ? R1 : R2;
+        const hot = n.suspicion > 0;
         return {
           id: n.id,
           position: { x: R * Math.cos(ang), y: R * Math.sin(ang) },
           data: { label: `${n.id.split("/").pop()}\n${n.type} · ${n.signal_count.toLocaleString()}` },
           style: {
-            borderColor: n.suspicion > 0 ? "#d64545" : "#263242",
-            borderWidth: n.suspicion > 0 ? 2 : 1,
-            width: 200, fontFamily: "monospace", fontSize: 11, whiteSpace: "pre-line" as const,
+            borderColor: hot ? "#ff003c" : NEON,
+            borderWidth: hot ? 2 : 1,
+            width: 200, background: NODE_BG, color: hot ? "#ff5c7a" : NEON,
+            fontFamily: "monospace", fontSize: 11, whiteSpace: "pre-line" as const,
+            textShadow: hot ? "0 0 6px rgba(255,0,60,0.9)" : GLOW,
+            boxShadow: hot ? "0 0 14px rgba(255,0,60,0.4)" : "0 0 10px rgba(0,255,65,0.25)",
           },
         };
       }),
@@ -76,14 +84,16 @@ export default function Graph() {
         source: e.src,
         target: e.dst,
         label: e.type,
-        style: { stroke: ECOLOR[e.type] ?? "#8a96a6", strokeWidth: 1.5 },
+        labelStyle: { fill: ECOLOR[e.type] ?? NEON, fontFamily: "monospace", fontSize: 10 },
+        labelBgStyle: { fill: "#000" },
+        style: { stroke: ECOLOR[e.type] ?? NEON, strokeWidth: 1.5 },
       }));
     return { nodes: ns, edges: es };
   }, [data, q, lim]);
 
   return (
     <div>
-      <h2 className="text-lg font-semibold">Proveniencia (1 salto, layout estrella)</h2>
+      <h2 className="text-lg font-semibold text-[#00ff41]" style={{ textShadow: "0 0 8px rgba(0,255,65,0.7)" }}>Proveniencia_ <span className="text-xs font-normal text-mut">(1 salto, layout estrella)</span></h2>
       <form className="mt-2 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); setQ(node); }}>
         <input value={node} onChange={(e) => setNode(e.target.value)}
           placeholder="ORG-0004/user:USER-0719 o ORG-0004/HOST-0032"
@@ -124,10 +134,12 @@ export default function Graph() {
           <p className="mono mt-3 text-xs text-mut">
             {data.node} · {data.n_edges} aristas vecinas · mostrando {nodes.length - 1} vecinos (sospechosos primero)
           </p>
-          <div className="mt-2 h-[520px] rounded-md border border-line">
-            <ReactFlow nodes={nodes} edges={edges} fitView colorMode="dark" />
+          <div className="mt-2 h-[520px] rounded-md border border-[#0f3d1e] bg-black">
+            <ReactFlow nodes={nodes} edges={edges} fitView colorMode="dark" style={{ background: "#000" }} proOptions={{ hideAttribution: true }}>
+              <Background variant="dots" gap={24} size={1.5} color="#0f3d1e" bgColor="#000" />
+            </ReactFlow>
           </div>
-          <p className="mt-1 text-xs text-mut">Borde rojo = suspicion_score &gt; 0 · aristas solo hacia ★ (1 salto real, sin ruido cruzado).</p>
+          <p className="mt-1 text-xs text-mut">Rojo = suspicion_score &gt; 0 · aristas solo hacia ★ (1 salto real). Verde = tráfico normal.</p>
         </>
       )}
     </div>
