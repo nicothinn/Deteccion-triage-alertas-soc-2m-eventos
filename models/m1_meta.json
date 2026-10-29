@@ -1,0 +1,25 @@
+{
+  "cats": [
+    "message_type",
+    "stream_name",
+    "product_name",
+    "vendor_name",
+    "pipeline",
+    "org_id",
+    "action",
+    "severity",
+    "protocol"
+  ],
+  "nums": [
+    "hour",
+    "msg_len",
+    "lag_h"
+  ],
+  "classes": [
+    "benign",
+    "malicious",
+    "suspicious"
+  ],
+  "n_train": 112848,
+  "n_test": 28212
+}

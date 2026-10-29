@@ -1,0 +1,8 @@
+# paridad local con la nube: un servicio, mismo :8000 (API + web)
+services:
+  soc:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: 8000

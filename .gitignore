@@ -1,0 +1,21 @@
+.venv/
+data/.cache/
+__pycache__/
+*.pyc
+*.pyo
+models/*.pkl
+experiments/mlruns/
+
+# pesados: parquets 2M + papers PDF (ver docs/referencias_primer_entregable.md para links)
+data/**/*.parquet
+papers/*.pdf
+contexto/*.pdf
+
+# build latex (paper.pdf si se sube)
+*.aux
+*.log
+*.out
+*.toc
+
+# runtime
+data/feedback.csv

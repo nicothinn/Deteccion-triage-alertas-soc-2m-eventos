@@ -1,0 +1,367 @@
+{
+  "schema_version": "2.0",
+  "columns": [
+    "timestamp",
+    "event_time",
+    "timestamp_source",
+    "origin",
+    "org_id",
+    "artifact_id",
+    "message_type",
+    "stream_name",
+    "pipeline",
+    "src_ip",
+    "dst_ip",
+    "src_port",
+    "dst_port",
+    "protocol",
+    "src_host",
+    "dst_host",
+    "username",
+    "action",
+    "severity",
+    "vendor_code",
+    "message_sanitized",
+    "label_binary",
+    "label_confidence",
+    "attack_techniques",
+    "attack_tactics",
+    "defense_techniques",
+    "mo_name",
+    "suspicion_score",
+    "lifecycle_stage",
+    "disposition",
+    "disposition_category",
+    "is_false_positive",
+    "status_name",
+    "incident_ids",
+    "matched_rules",
+    "set_roles",
+    "product_name",
+    "vendor_name"
+  ],
+  "total_records": 2250185,
+  "label_distribution": {
+    "benign": 1897153,
+    "malicious": 246239,
+    "suspicious": 106793
+  },
+  "tables": {
+    "signals": {
+      "rows": 2011674,
+      "label_distribution": {
+        "benign": 1897153,
+        "suspicious": 106793,
+        "malicious": 7728
+      },
+      "disposition_distribution": {
+        "Unprocessed": 2005877,
+        "Disrupted": 5779,
+        "Open": 15,
+        "Cold Case": 3
+      },
+      "disposition_by_label": {
+        "benign|Unprocessed": 1897153,
+        "malicious|Cold Case": 3,
+        "malicious|Disrupted": 5779,
+        "malicious|Open": 15,
+        "malicious|Unprocessed": 1931,
+        "suspicious|Unprocessed": 106793
+      },
+      "org_distribution": {
+        "ORG-0004": 995985,
+        "ORG-0005": 576817,
+        "ORG-0003": 433904,
+        "ORG-0001": 4968
+      },
+      "org_label_distribution": {
+        "ORG-0001|benign": 4958,
+        "ORG-0001|suspicious": 10,
+        "ORG-0003|benign": 433775,
+        "ORG-0003|malicious": 16,
+        "ORG-0003|suspicious": 113,
+        "ORG-0004|benign": 976694,
+        "ORG-0004|malicious": 4176,
+        "ORG-0004|suspicious": 15115,
+        "ORG-0005|benign": 481726,
+        "ORG-0005|malicious": 3536,
+        "ORG-0005|suspicious": 91555
+      },
+      "time_range": {
+        "min": "2024-07-26T11:10:23Z",
+        "max": "2024-08-01T06:00:03Z"
+      },
+      "time_range_by_label": {
+        "benign": {
+          "min": "2024-07-26T11:10:23Z",
+          "max": "2024-08-01T06:00:03Z"
+        },
+        "malicious": {
+          "min": "2024-07-26T11:15:48Z",
+          "max": "2024-07-30T04:56:35Z"
+        },
+        "suspicious": {
+          "min": "2024-07-26T11:10:48Z",
+          "max": "2024-08-01T02:56:24Z"
+        }
+      },
+      "timestamp_sources": {
+        "artifact.timeuuid": 2011674
+      },
+      "invalid_timestamps": 0,
+      "username_present_by_label": {
+        "benign": 692147,
+        "suspicious": 88,
+        "malicious": 36
+      },
+      "distinct_incidents": 1584,
+      "message_type_distribution": {
+        "security_audit_event": 336425,
+        "management_message": 266320,
+        "java_error": 154491,
+        "4662": 115553,
+        "5156": 101277,
+        "firewall_action": 95062,
+        "4658": 78706,
+        "GetLogEvents": 61210,
+        "AssumeRole": 57676,
+        "unknown": 52039,
+        "DescribeInstanceStatus": 48024,
+        "audit_log": 39646,
+        "4656": 39413,
+        "4690": 39066,
+        "dns_event": 34110,
+        "DescribeInstances": 26275,
+        "DescribeLoadBalancers": 21717,
+        "network_flow_data": 19219,
+        "ListClusters": 15820,
+        "DescribeAccountAttributes": 14748,
+        "GET": 14476,
+        "GetBucketAcl": 9842,
+        "UpdateInstanceInformation": 9163,
+        "ListFunctions20150331": 8981,
+        "pam_event": 8685,
+        "DescribeVolumes": 7673,
+        "DescribeClusters": 7652,
+        "DescribeVpcs": 7512,
+        "account_logon": 7358,
+        "GetBucketMetricsConfiguration": 6995,
+        "ListStacks": 6980,
+        "account_logoff": 6979,
+        "DescribeTargetGroups": 6785,
+        "DescribeSubnets": 6745,
+        "4799": 6376,
+        "GetBucketLocation": 6349,
+        "GetResources": 6137,
+        "DescribeAccountLimits": 5905,
+        "UpdateInstanceAssociationStatus": 5888,
+        "GetSendQuota": 5874
+      },
+      "product_distribution": {
+        "AWS Instance Backup": 543159,
+        "Windows Active Directory": 421587,
+        "Windows Logs": 336425,
+        "VMWare VCenter": 266201,
+        "ASA Firewall": 95143,
+        "AWS VPC Security": 19219,
+        "Barracuda WAF": 14870,
+        "Linux PAM": 8685,
+        "ManageEngine ADManager": 1275,
+        "Graph": 470,
+        "Barracuda ESS": 391,
+        "Falcon": 334,
+        "Cisco Network Operating System": 192,
+        "Apache Web Server": 170,
+        "Duo": 153,
+        "Symantec Endpoint Protection": 127,
+        "SentinelOne": 20,
+        "Symantec Data Loss Prevention": 14,
+        "Precinct": 10
+      },
+      "vendor_distribution": {
+        "Microsoft": 758482,
+        "Amazon Web Services": 562378,
+        "VMWare": 266201,
+        "Cisco": 95488,
+        "Barracuda": 15261,
+        "Linux": 8685,
+        "ManageEngine": 1275,
+        "Crowdstrike": 334,
+        "Apache": 170,
+        "Symantec": 141,
+        "SentinelOne": 20,
+        "WitFoo": 10
+      },
+      "distinct_products": 19,
+      "distinct_vendors": 12,
+      "stream_distribution": {
+        "aws_cloudtrail_events": 543159,
+        "microsoft-windows-security-auditing": 421587,
+        "windows_security_audit": 336425,
+        "vcenter": 266201,
+        "java_stack_trace": 154465,
+        "cisco_asa": 95143,
+        "no_useful_info": 48246,
+        "aws_cloud_trail": 34484,
+        "dnsmasq": 34110,
+        "aws_vpc_flow_log": 19219,
+        "barracuda_waf": 14870,
+        "pam": 8685,
+        "sshd": 6578,
+        "mssql$HOST-1053": 6376,
+        "linux_audit": 3887,
+        "unknown": 3692,
+        "crond": 2308,
+        "service control manager": 2068,
+        "security": 1775,
+        "ad_audit_plus": 1275,
+        "ad fs auditing": 1193,
+        "filebeat_diagnostic": 905,
+        "network_communication": 881,
+        "Microsoft Graph Asset Inventory": 470,
+        "systemd_logind": 465,
+        "Integrations Status": 408,
+        "barracuda_ess": 391,
+        "Crowdstrike Asset Inventory": 276,
+        "microsoft-windows-distributedcom": 231,
+        "rsyslogd": 208,
+        "directory synchronization": 203,
+        "cisco_os": 192,
+        "apache_access_log": 170,
+        "systemd": 157,
+        "DUO Asset Inventory": 153,
+        "esent": 130,
+        "symantec_sep": 127,
+        "microsoft-windows-security-spp": 93,
+        "schannel": 91,
+        "Crowdstrike Detection": 58
+      },
+      "files": [
+        "signals.parquet"
+      ],
+      "shard_size": null
+    },
+    "incident_signals": {
+      "rows": 238511,
+      "label_distribution": {
+        "malicious": 238511
+      },
+      "disposition_distribution": {
+        "Disrupted": 176510,
+        "Unprocessed": 61652,
+        "Open": 330,
+        "Cold Case": 14,
+        "Dismissed": 5
+      },
+      "disposition_by_label": {
+        "malicious|Cold Case": 14,
+        "malicious|Dismissed": 5,
+        "malicious|Disrupted": 176510,
+        "malicious|Open": 330,
+        "malicious|Unprocessed": 61652
+      },
+      "org_distribution": {
+        "ORG-0001": 138865,
+        "ORG-0005": 82851,
+        "ORG-0003": 7162,
+        "ORG-0004": 6463,
+        "ORG-0002": 3170
+      },
+      "org_label_distribution": {
+        "ORG-0001|malicious": 138865,
+        "ORG-0002|malicious": 3170,
+        "ORG-0003|malicious": 7162,
+        "ORG-0004|malicious": 6463,
+        "ORG-0005|malicious": 82851
+      },
+      "time_range": {
+        "min": "2022-05-30T14:43:45Z",
+        "max": "2024-07-28T16:39:47Z"
+      },
+      "time_range_by_label": {
+        "malicious": {
+          "min": "2022-05-30T14:43:45Z",
+          "max": "2024-07-28T16:39:47Z"
+        }
+      },
+      "timestamp_sources": {
+        "lead.observed_at": 237650,
+        "lead.observed_at.year_repaired": 835,
+        "artifact.timeuuid": 26
+      },
+      "invalid_timestamps": 0,
+      "username_present_by_label": {
+        "malicious": 104
+      },
+      "distinct_incidents": 49797,
+      "message_type_distribution": {
+        "firewall_action": 221387,
+        "flow": 6927,
+        "network_flow_data": 6436,
+        "traffic_drop": 2738,
+        "firewall_log": 423,
+        "anomalous_behavior": 196,
+        "GEO_IP_BLOCK": 127,
+        "auth_failure": 62,
+        "GRIP_IP_BLACKLISTED": 45,
+        "INVALID_METHOD": 34,
+        "UNKNOWN_CONTENT_TYPE": 32,
+        "MALFORMED_VERSION": 31,
+        "endpoint_protection_event": 25,
+        "REMOTE_FILE_INCLUSION": 16,
+        "SLASH_DOT_IN_URL": 14,
+        "credential_access": 7,
+        "email_protection_event": 3,
+        "traffic_deny": 3,
+        "security_privilege_change": 2,
+        "DIRECTORY_TRAVERSAL_BEYOND_ROOT": 2,
+        "SQL_INJECTION_IN_PARAM": 1
+      },
+      "product_distribution": {
+        "ASA Firewall": 221381,
+        "Meraki": 7077,
+        "AWS VPC Security": 6436,
+        "PAN NGFW": 3164,
+        "Barracuda WAF": 302,
+        "Windows Active Directory": 63,
+        "Cisco Meraki Firewall": 46,
+        "Falcon": 25,
+        "Precinct": 8,
+        "Umbrella": 6,
+        "Protect": 3
+      },
+      "vendor_distribution": {
+        "Cisco": 228507,
+        "Amazon Web Services": 6436,
+        "Palo Alto": 3164,
+        "Barracuda": 302,
+        "Microsoft": 63,
+        "Crowdstrike": 25,
+        "ProofPoint": 3,
+        "WitFoo": 1
+      },
+      "distinct_products": 11,
+      "distinct_vendors": 8,
+      "stream_distribution": {
+        "cisco_asa": 221381,
+        "meraki": 7077,
+        "aws_vpc_flow_log": 6436,
+        "pan_firewall": 3164,
+        "barracuda_waf": 302,
+        "microsoft-windows-security-auditing": 63,
+        "meraki_l7_firewall": 46,
+        "Crowdstrike Detection": 25,
+        "DUO": 7,
+        "HOST-0325 Detection": 6,
+        "proofpoint_protect": 3,
+        "sshd": 1
+      },
+      "files": [
+        "incident_signals.parquet"
+      ]
+    }
+  },
+  "formats": [
+    "Parquet"
+  ]
+}

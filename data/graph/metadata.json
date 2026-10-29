@@ -1,0 +1,114 @@
+{
+  "dataset_name": "WitFoo Precinct6 Cybersecurity Dataset",
+  "schema_version": "2.0",
+  "description": "Labeled provenance graphs and security signal logs for IDS research",
+  "node_count": 47585,
+  "edge_count": 1740438,
+  "edge_files": [
+    "edges.jsonl"
+  ],
+  "user_edge_count": 692375,
+  "invalid_signal_timestamps": 0,
+  "incident_count": 51371,
+  "incident_duplicates_collapsed": 9204,
+  "label_distribution": {
+    "benign": 1051840,
+    "suspicious": 106706,
+    "malicious": 581892
+  },
+  "edge_type_distribution": {
+    "USER_ACTION": 692375,
+    "EVENT": 45063,
+    "AUDIT_EVENT": 336425,
+    "NETWORK_FLOW": 323376,
+    "DNS_RESOLVE": 7554,
+    "INCIDENT_LINK": 335645
+  },
+  "edge_origin_distribution": {
+    "live": 1166274,
+    "incident_lead": 238519,
+    "incident": 335645
+  },
+  "node_type_distribution": {
+    "HOST": 36974,
+    "CREDENTIAL": 10575,
+    "SERVICE": 6,
+    "FILE": 29,
+    "ACTOR": 1
+  },
+  "node_id_scheme": {
+    "HOST": "public IP as-is; private IP or hostname scoped by organization: <ORG-NNNN>/<ip-or-hostname> (shared by live signals and incident nodes)",
+    "CREDENTIAL": "<ORG-NNNN>/user:<USER-NNNN> (shared by live username fields and incident cred nodes)",
+    "other": "incident SERVICE / FILE / ACTOR nodes keep their Precinct uuid as node id"
+  },
+  "node_attr_keys": [
+    "ip",
+    "hostname",
+    "username",
+    "credential",
+    "org_id",
+    "first_seen",
+    "last_seen",
+    "signal_count",
+    "set_roles",
+    "products",
+    "suspicion_score",
+    "incident_ids",
+    "precinct_node_ids",
+    "internal",
+    "managed",
+    "incident_first_observed",
+    "incident_last_observed"
+  ],
+  "edge_attr_keys": [
+    "message_type",
+    "action",
+    "protocol",
+    "src_port",
+    "dst_port",
+    "stream",
+    "origin",
+    "org_id",
+    "artifact_id",
+    "sender_host",
+    "event_edge_type",
+    "host_role",
+    "incident_id",
+    "mo_name",
+    "status",
+    "edge_subtype",
+    "edge_kind",
+    "started",
+    "ended",
+    "count",
+    "bytes",
+    "precinct_edge_id"
+  ],
+  "edge_label_keys": [
+    "label_binary",
+    "label_confidence",
+    "suspicion_score",
+    "mo_name",
+    "attack_techniques",
+    "attack_tactics",
+    "set_roles",
+    "lifecycle_stage",
+    "disposition",
+    "disposition_category",
+    "status_name",
+    "incident_ids",
+    "matched_rules",
+    "incident_id"
+  ],
+  "sanitization": {
+    "method": "4-layer (regex + format-parse + ML/NER + LLM review)",
+    "ip_replacement": "RFC5737 TEST-NET for public, remapped RFC1918 for private",
+    "org_replacement": "ORG-NNNN",
+    "host_replacement": "HOST-NNNN / host-NNNN.example.internal"
+  },
+  "formats": [
+    "NDJSON (nodes.jsonl + edges.jsonl)",
+    "per-incident GraphML",
+    "GraphML (graph.graphml)"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "model": "m3-grafo-v1",
+  "f1_macro": 0.7186,
+  "recall_mal_at_1fpr": 0.0376,
+  "per_class": {
+    "benign": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 3012,
+      "pr_auc": 1.0
+    },
+    "malicious": {
+      "precision": 0.7946,
+      "recall": 0.962,
+      "f1": 0.8703,
+      "support": 2288,
+      "pr_auc": 0.8154
+    },
+    "suspicious": {
+      "precision": 0.6009,
+      "recall": 0.1871,
+      "f1": 0.2854,
+      "support": 700,
+      "pr_auc": 0.3554
+    }
+  },
+  "n_train": 24000,
+  "n_test": 6000,
+  "config": {
+    "vecindario": "\u00b15min por host/credencial (ORG|valor)",
+    "agregacion": "SAGE-mean 1 salto + XGBoost 300x6",
+    "split": "temporal 80/20",
+    "sample_n": 30000
+  }
+}

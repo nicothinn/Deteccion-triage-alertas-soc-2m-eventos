@@ -1,0 +1,64 @@
+{
+  "total_records": 114481915,
+  "artifacts": 114421340,
+  "incidents": 60575,
+  "other": 0,
+  "prescan_pii_entries": 84917,
+  "layer3_new_pii": 470,
+  "layer4_new_pii": 2,
+  "layer4_reviewed": 1500,
+  "resanitized": 114481915,
+  "layer4_review": {
+    "total_reviewed": 1500,
+    "batches": 559,
+    "batches_failed": 0,
+    "usable": true,
+    "total_findings": 587,
+    "accepted_findings": 2,
+    "new_registry_entries": 2,
+    "rejected": {
+      "low_confidence": 460,
+      "implausible_hostname": 8,
+      "already_sanitized_or_allowed": 92,
+      "category_not_registrable": 5,
+      "implausible_name": 10,
+      "is_output_token": 9,
+      "not_a_domain": 1
+    },
+    "errors": 0,
+    "truncated": 0,
+    "skipped_batches": 0,
+    "formats_with_issues": [
+      [
+        "18268",
+        "mssql$HOST-1053"
+      ]
+    ],
+    "strata_count": 142,
+    "model": "witq"
+  },
+  "registry": {
+    "aws_account": 248,
+    "credential": 3181,
+    "domain": 8,
+    "email": 3153,
+    "fqdn": 6244,
+    "hostname": 1055,
+    "ipv4_priv": 4321,
+    "ipv4_pub": 42703,
+    "ipv6": 210,
+    "machine_account": 872,
+    "org": 419,
+    "org_id": 6,
+    "sid": 2018,
+    "username": 20650
+  },
+  "workers": 16,
+  "layer3_ran": true,
+  "layer3_sample": 3000,
+  "layer4_ran": true,
+  "layer4_model": "witq",
+  "layer4_sample": 1500,
+  "layer4_sample_requested": 1500,
+  "sanitized": true
+}

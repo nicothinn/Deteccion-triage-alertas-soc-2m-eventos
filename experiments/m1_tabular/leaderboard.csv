@@ -1,0 +1,9 @@
+params.model,params.fset,metrics.f1_macro,metrics.recall_malicious,metrics.precision_malicious,metrics.pr_auc_malicious,metrics.recall_mal_at_1fpr,metrics.f1_suspicious,metrics.precision_suspicious,metrics.train_s
+logreg,F2,0.6148,0.9679,0.6434,0.613,0.0022,0.0733,0.4083,23.0
+logreg,F3,0.6095,0.9798,0.6467,0.6332,0.0048,0.0494,0.4167,21.3
+lgbm,F1,0.5951,1.0,0.6452,0.6445,0.0202,0.0012,0.5,15.5
+rf,F3,0.5217,0.0286,0.5057,0.6163,0.0286,0.5111,0.3497,25.3
+xgb,F3,0.515,0.027,0.3529,0.6087,0.0109,0.4948,0.3398,14.9
+xgb,F2,0.5131,0.0112,0.4605,0.6395,0.0202,0.5174,0.352,10.8
+lgbm,F3,0.5092,0.0183,0.2727,0.6077,0.0022,0.4932,0.3381,16.6
+lgbm,F2,0.5052,0.0,0.0,0.6667,0.0,0.5155,0.35,20.6

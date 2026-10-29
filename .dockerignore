@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+node_modules/
+soc-ui/node_modules/
+soc-ui/dist/
+notebooks/
+papers/
+reports/figures/
+data/build/
+data/.cache/
+data/signals/incident_signals.parquet
+*.ipynb_checkpoints

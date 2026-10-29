@@ -1,0 +1,37 @@
+{
+  "model": "m1-tabar-v1",
+  "f1_macro": 0.5991,
+  "per_class": {
+    "benign": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 18506,
+      "pr_auc": 1.0
+    },
+    "malicious": {
+      "precision": 0.0507,
+      "recall": 0.0045,
+      "f1": 0.0082,
+      "support": 3130,
+      "pr_auc": 0.3023
+    },
+    "suspicious": {
+      "precision": 0.6696,
+      "recall": 0.9602,
+      "f1": 0.789,
+      "support": 6576,
+      "pr_auc": 0.6758
+    }
+  },
+  "n_train": 112848,
+  "n_test": 28212,
+  "config": {
+    "n_estimators": 200,
+    "learning_rate": 0.08,
+    "num_leaves": 63,
+    "class_weight": "balanced",
+    "split": "temporal 80/20",
+    "sample_n": 200000
+  }
+}
