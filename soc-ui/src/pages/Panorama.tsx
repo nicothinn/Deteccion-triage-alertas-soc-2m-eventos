@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import Bar from "../components/Bar";
+import { ConfusionM1, F1Macro, M4bCard, MalRecall, PerClassF1, PrAucMal } from "../components/ModelDash";
 
 export default function Panorama() {
   const { data, error } = useQuery({ queryKey: ["stats"], queryFn: api.stats });
+  const metrics = useQuery({ queryKey: ["metrics"], queryFn: api.modelMetrics });
   if (error) return <p className="text-sm text-mal">No responde :8000. Levanta <span className="mono">uv run uvicorn app.main:app --port 8000</span> y recarga.</p>;
   if (!data) return <p className="text-sm text-mut">Leyendo /stats (conteos fijos del EDA)…</p>;
   const ir = (data.benign / data.malicious).toFixed(0);
@@ -22,7 +24,29 @@ export default function Panorama() {
           </div>
         ))}
       </div>
-      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+
+      <h2 className="mb-2 mt-6 text-lg font-semibold">Modelos <span className="text-sm font-normal text-mut">(test temporal 80/20, sin shuffle)</span></h2>
+      {!metrics.data ? (
+        <p className="text-sm text-mut">Leyendo /model/metrics…</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <F1Macro m={metrics.data} />
+            <MalRecall m={metrics.data} />
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <PerClassF1 m={metrics.data} />
+            <PrAucMal m={metrics.data} />
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <ConfusionM1 />
+            <M4bCard m={metrics.data} />
+          </div>
+        </>
+      )}
+
+      <h2 className="mb-2 mt-6 text-lg font-semibold">Datos <span className="text-sm font-normal text-mut">(de dónde viene el volumen)</span></h2>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Bar title="¿De dónde viene el ruido?" note="Respuesta: backup de AWS y AD de Windows. El SOC vive filtrando esto." data={data.top_products} color="#8a96a6" />
         <Bar title="¿Quién genera el volumen?" note="Respuesta: Microsoft + AWS = 2/3. Modela el vendor como feature, no como filtro." data={data.top_vendors} color="#3aa88f" />
         <Bar title="¿Qué severidad trae cada evento?" note="Respuesta: ~49% llega vacía. Se imputa como nivel propio, nunca mediana." data={data.severity} color="#d99a2b" />

@@ -299,8 +299,16 @@ def vecindario(node: str, tipos: str = "", limit: int = 150):
     if tipos:
         want = {t.strip() for t in tipos.split(",") if t.strip()}
         m &= e["type"].isin(want)
-    e = e[m].head(limit)
+    e = e[m]
+    # ponytail: diversidad primero — una arista por vecino, si no head() trae
+    # miles de filas repetidas al mismo host y el grafo sale con 2 nodos
+    if len(e) > limit:
+        other = e["dst"].where(e["src"] == node, e["src"])
+        e = e.assign(_o=other).drop_duplicates("_o").head(limit).drop(columns="_o")
+    else:
+        e = e.head(limit)
     ids = {node} | set(e["src"]) | set(e["dst"])
+    nodes_out = []
     nodes_out = []
     if nf.exists():
         n = pd.read_parquet(nf)
