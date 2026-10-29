@@ -55,7 +55,25 @@ export default function Queue() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_1fr]">
+    <div>
+      <section className="rounded-md border border-line bg-panel p-4">
+        <h3 className="font-semibold">Qué estás viendo</h3>
+        <p className="mt-1 text-sm text-txt/90">
+          La cola ordenada por riesgo: maliciosos primero, luego sospechosos recientes.
+          Cada fila es 1 evento de 2M; elige una y puntúala a la derecha. Nada aquí es inventado: todo sale de <span className="mono">/queue</span> en vivo.
+        </p>
+        <details className="mt-2 text-sm">
+          <summary className="cursor-pointer text-[#00ff41]">Cómo se puntúa (cascada M1 → M2 → M3)</summary>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-txt/90">
+            <li><b>M1 tabular</b> (&lt;50ms): filtra lo obvio por campos. Rápido pero ciega a malicious (recall 0.0045).</li>
+            <li><b>M2 texto</b> (~100ms): lee el mensaje y confirma malicious (recall 0.97). Basta que uno diga malicious para escalar.</li>
+            <li><b>M3 grafo</b> (~s): junta el vecindario ±5min del artifact y busca cadenas. Botón “Consultar vecindario M3”.</li>
+            <li><b>Técnicas ATT&CK</b> vienen del tier decidido (mapeo oráculo, no predicción aprendida): malicious → T1190+T1041+T1567.</li>
+            <li><b>Tu turno:</b> los botones escalar/monitorear/falso_positivo guardan tu corrección y el modelo re-entrena con ella.</li>
+          </ul>
+        </details>
+      </section>
+      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_1fr]">
       <section>
         <div className="mb-2 flex items-center gap-2">
           <h2 className="text-lg font-semibold">Cola por riesgo</h2>
