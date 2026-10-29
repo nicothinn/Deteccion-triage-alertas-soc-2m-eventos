@@ -13,11 +13,17 @@ const ECOLOR: Record<string, string> = {
   DNS_RESOLVE: "#b07fe8",
   INCIDENT_LINK: "#d64545",
 };
-const SUGGEST = ["ORG-0004/user:USER-0719", "ORG-0004/HOST-0032", "ORG-0004/user:USER-0720", "ORG-0004/HOST-0061"];
+const SUGGEST: { label: string; node: string; desc: string }[] = [
+  { label: "C2 · 100.64.39.157", node: "100.64.39.157", desc: "susp 0.99 · 65 incident + 50 flow · posible C2/exfil" },
+  { label: "Lateral · USER-0719", node: "ORG-0004/user:USER-0719", desc: "99 hosts distintos · movimiento lateral" },
+  { label: "Lateral · USER-0728", node: "ORG-0004/user:USER-0728", desc: "60 hosts distintos · segunda credencial" },
+  { label: "Víctima · 10.187.253.125", node: "ORG-0005/10.187.253.125", desc: "susp 0.92 · 12k incident links · host golpeado" },
+  { label: "DNS · vcenter", node: "ORG-0005/vcenter", desc: "7.5k resolves · caza DNS tunneling" },
+];
 
 export default function Graph() {
-  const [node, setNode] = useState(SUGGEST[0]);
-  const [q, setQ] = useState(SUGGEST[0]);
+  const [node, setNode] = useState(SUGGEST[0].node);
+  const [q, setQ] = useState(SUGGEST[0].node);
   const [tipos, setTipos] = useState<string[]>(["USER_ACTION", "NETWORK_FLOW"]);
   const [lim, setLim] = useState(60);
   const { data, isLoading } = useQuery({
@@ -84,14 +90,19 @@ export default function Graph() {
           className="mono min-w-[320px] flex-1 rounded-md border border-line bg-panel px-3 py-2 text-sm" />
         <button className="rounded-md border border-line bg-panel px-4 text-sm">Explorar</button>
       </form>
+      <div className="mt-2">
+        <p className="text-xs text-mut">Ataques reales (presets verificados en el EDA):</p>
+        <div className="mt-1 flex flex-wrap gap-2">
+          {SUGGEST.map((s) => (
+            <button key={s.node} title={s.desc} onClick={() => { setNode(s.node); setQ(s.node); }}
+              className={`mono rounded border px-2 py-1 text-xs ${s.node === q ? "border-line bg-ink text-txt" : "border-line bg-panel text-mut"}`}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <p className="mono mt-1 text-xs text-mut">{SUGGEST.find((s) => s.node === q)?.desc ?? "nodo manual"}</p>
+      </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-mut">Atajos:</span>
-        {SUGGEST.map((s) => (
-          <button key={s} onClick={() => { setNode(s); setQ(s); }}
-            className={`mono rounded border px-2 py-1 text-xs ${s === q ? "border-line bg-ink text-txt" : "border-line bg-panel text-mut"}`}>
-            {s.split("/").pop()}
-          </button>
-        ))}
         <span className="ml-2 text-xs text-mut">Nodos:</span>
         {[25, 60, 120].map((n) => (
           <button key={n} onClick={() => setLim(n)}
