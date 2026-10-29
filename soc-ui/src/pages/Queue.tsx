@@ -122,7 +122,8 @@ export default function Queue() {
                 <p><span className={`sev-ico ${score.label}`} />{" "}
                   <b className="mono">{score.label}</b> → {score.triage}</p>
                 <p className="mono mt-1 text-xs text-mut">{JSON.stringify(score.proba)}</p>
-                <p className="mono mt-1 text-xs text-mut">{score.model} · {score.techniques.join(", ") || "sin hint de regla"}</p>
+                <p className="mono mt-1 text-xs text-mut">{score.model} · ATT&CK [{score.techniques.join(", ") || "—"}]</p>
+                <p className="mono mt-1 text-xs text-mut">{score.techniques_source}</p>
                 {score.m2 && (
                   <p className="mono mt-1 text-xs text-txt/90">
                     M2 texto: <b>{score.m2.label}</b> {JSON.stringify(score.m2.proba)} · {score.m2.model}

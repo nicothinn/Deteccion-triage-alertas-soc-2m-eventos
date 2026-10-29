@@ -43,6 +43,10 @@ export interface ModelMetrics {
          per_class: Record<string, ClassMetrics>; n_train: number; n_test: number } | null;
   m3?: { model: string; f1_macro: number; recall_mal_at_1fpr: number;
          per_class: Record<string, ClassMetrics>; n_train: number; n_test: number } | null;
+  m4?: { model: string; labels: string[]; micro_f1: number; macro_f1: number;
+         hamming: number; subset_acc: number; n_train: number; n_test: number } | null;
+  m4b?: { model: string; labels: string[]; micro_f1: number; macro_f1: number;
+         hamming: number; subset_acc: number; n_train: number; n_test: number } | null;
 }
 
 export interface ExplainFeat { feature: string; importance: number; value: number; active: boolean }
@@ -56,7 +60,7 @@ export interface Vecindario {
 
 export interface ScoreResp {
   label: string; proba: Record<string, number>;
-  techniques: string[]; tactics: string[]; model: string; triage: string;
+  techniques: string[]; tactics: string[]; techniques_source: string; model: string; triage: string;
   m2?: { label: string; proba: Record<string, number>; model: string } | null;
 }
 

@@ -19,12 +19,15 @@ MODEL = {"pipe": None, "meta": None, "name": "m1-stub",
          "m2": None, "m2name": "m2-stub",
          "m3": None, "m3name": "m3-stub"}
 
-# hint ATT&CK por message_type (del EDA; M3 lo predecirá de verdad)
-HINTS = {
-    "firewall_action": (["T1041", "T1190"], ["TA0010", "TA0001"]),
-    "account_logon": (["T1078"], ["TA0001"]),
-    "4624": (["T1078"], ["TA0001"]),
+# ponytail: tecnicas ATT&CK derivadas del tier (oraculo M4: micro-F1 0.9994 en test temporal;
+# en live son priors de regla, no atribucion por evento — ver notebooks/m4b_xgb_pertecnica_out.ipynb).
+# M4b-XGB aprendido NO se despliega (T1041/T1567 P 0.08 mentirian al analista).
+TIER_TECH = {
+    "malicious": (["T1190", "T1041", "T1567"], ["TA0001", "TA0010"]),
+    "suspicious": (["T1190"], ["TA0001"]),
+    "benign": ([], []),
 }
+TECH_SRC = "tier-mapping M4-oracle (micro-F1 0.9994 test temporal)"
 BASELINE = {"f1_macro": 0.599, "n_train": 112848, "note": "M1 tabular, split temporal 80/20, IR 245:1"}
 SIG = ROOT / "data" / "signals" / "signals.parquet"
 REP = ROOT / "data" / "graph" / "attack_reports.parquet"
@@ -94,6 +97,7 @@ class LogOut(BaseModel):
     proba: dict
     techniques: list
     tactics: list
+    techniques_source: str = ""
     model: str
     triage: str  # regla operativa: block+malicious→escalar
     m2: dict | None = None  # cascada texto: {label, proba, model}
@@ -238,6 +242,10 @@ def model_metrics():
     h = ROOT / "models" / "m3_metrics.json"
     if h.exists():
         out["m3"] = json.loads(h.read_text())
+    for m in ("m4_metrics.json", "m4b_metrics.json"):
+        f = ROOT / "models" / m
+        if f.exists():
+            out[m.split("_")[0]] = json.loads(f.read_text())
     return out
 
 @app.post("/explain")
@@ -347,11 +355,14 @@ def score(log: LogIn):
         m2 = predict_m2(log)
     except Exception as e:
         raise HTTPException(400, str(e))
-    tech, tact = HINTS.get(log.message_type, ([], []))
-    # cascada: M1 rankea, M2 confirma por texto; basta uno en malicious para escalar
+    # cascada: M1 rankea, M2 confirma por texto; basta uno en malicious para escalar.
+    # tecnicas del tier decidido (oraculo M4), no del message_type.
     mal = label == "malicious" or (m2 is not None and m2["label"] == "malicious")
+    tier = "malicious" if mal else label
+    tech, tact = TIER_TECH.get(tier, ([], []))
     triage = "escalar" if (mal or (label == "suspicious" and log.action == "block")) else "monitorear"
     return LogOut(label=label, proba=proba, techniques=tech, tactics=tact,
+                  techniques_source=TECH_SRC,
                   model=MODEL["name"], triage=triage, m2=m2)
 
 @app.post("/score_batch")
@@ -365,10 +376,11 @@ def score_batch(logs: list[LogIn]):
     probas = MODEL["pipe"].predict_proba(df)
     out = []
     for l, pr, pb in zip(logs, preds, probas):
-        tech, tact = HINTS.get(l.message_type, ([], []))
+        tech, tact = TIER_TECH.get(str(pr), ([], []))
         out.append({"label": str(pr),
                     "proba": {k: round(float(v), 4) for k, v in zip(MODEL["pipe"].classes_, pb)},
-                    "techniques": tech, "tactics": tact, "model": MODEL["name"]})
+                    "techniques": tech, "tactics": tact, "techniques_source": TECH_SRC,
+                    "model": MODEL["name"]})
     return out
 
 # ponytail: en la imagen Docker el mismo :8000 sirve API + web (SPA).

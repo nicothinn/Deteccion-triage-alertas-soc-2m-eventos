@@ -51,6 +51,18 @@ export default function Lab() {
         </section>
       )}
 
+      {data.m4b && (
+        <section className="mt-4 rounded-md border border-line bg-panel p-4">
+          <h3 className="panel-title">M4b ATT&CK por técnica (XGBoost ×6) — micro {data.m4b.micro_f1} / macro {data.m4b.macro_f1}</h3>
+          <p className="mono mt-1 text-xs text-txt/90">
+            hamming {data.m4b.hamming} · subset-acc {data.m4b.subset_acc} · train {data.m4b.n_train.toLocaleString()} / test {data.m4b.n_test.toLocaleString()}
+          </p>
+          <p className="mono mt-1 text-xs text-mut">
+            T1190 F1 1.00 (trivial) · T1041/T1567 F1 0.07 (ni lineal ni XGB separan a nivel evento) · T1204 F1 0.39 (10/10 a base de FPs) · T1486/T1566 sin soporte — ver notebooks/m4b
+          </p>
+        </section>
+      )}
+
       {data.m3 && (
         <section className="mt-4 rounded-md border border-line bg-panel p-4">
           <h3 className="panel-title">M3 grafo (SAGE-mean ±5min) — F1-macro {data.m3.f1_macro}</h3>

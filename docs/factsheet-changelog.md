@@ -5,6 +5,7 @@ API `app/main.py` + React `soc-ui/`, un :8000 en Docker. Cascada: M1 rankea → 
 
 ## Changelog
 - 2026-10-29: quitar Streamlit + README 8 secciones + M4 multi-label (notebook) + SOTA ATT&CK (TRAM/SciBERT/TwoStage, 2 PDFs en papers/).
+- 2026-10-29: M4b XGB por tecnica (micro 0.79/macro 0.26, no desplegado) + capa tier→tecnicas en `/score` (oraculo M4) visible en Cola y Lab; `/model/metrics` expone m4/m4b.
 - 2026-10-28: paper sin TODOs + 4 figuras + `python:3.10-slim` + README/doc end-to-end + EDA completo + datasheet/model-cards.
 - 2026-10-27: M3 entrenado (F1 0.7186).
 - 2026-10-23: M2 entrenado (F1 0.7084) + variantes MLflow.
