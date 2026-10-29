@@ -1,0 +1,17 @@
+{
+  "model": "m4b-xgb-perlabel-v1",
+  "labels": [
+    "T1190",
+    "T1041",
+    "T1567",
+    "T1204",
+    "T1486",
+    "T1566"
+  ],
+  "micro_f1": 0.7926,
+  "macro_f1": 0.2557,
+  "hamming": 0.089,
+  "subset_acc": 0.7334,
+  "n_train": 91617,
+  "n_test": 22904
+}

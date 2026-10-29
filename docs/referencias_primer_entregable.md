@@ -119,3 +119,17 @@ https://github.com/DART-Laboratory/Flash-IDS
 uv run explorar.py
 # luego: sample 5k → EDA labels, ATT&CK counts, plot temporal
 ```
+
+## 8. SOTA multi-label ATT&CK (M4/M4b, oct-2026)
+
+Medido en casa: M4-LogReg micro 0.75/macro 0.25, M4b-XGB micro 0.79/macro 0.26 (`notebooks/m4_multilabel_attack_out.ipynb`, `m4b_xgb_pertecnica_out.ipynb`). T1190 trivial; T1041/T1567 no separables a nivel evento; cola sin soporte. Lo que la literatura hace para esto:
+
+- **TRAM (MITRE CTID)** — plataforma open-source + dataset 50 técnicas + notebooks single/multi-label SciBERT (Colab): https://github.com/center-for-threat-informed-defense/tram/ — notebooks: https://github.com/center-for-threat-informed-defense/tram/tree/main/user_notebooks — plantilla Fase 3 (fine-tune SciBERT multi-label con nuestros 51k `attack_reports`).
+- **Two-stage LLM (arXiv 2411.18755)** — LLM resume + SciBERT rebalanceado/aumentado, +5-9pp macro-F1 vs TRAM: https://arxiv.org/abs/2411.18755 — local: `papers/TwoStage-LLM-2411.18755.pdf` — receta contra la cola.
+- **Vuln-feature comparison (arXiv 2407.06753)** — TF-IDF (P 75%, F1 64%) gana a LSI/BERT/MiniLM/RoBERTa en threat-reports→vulnerabilidad: https://arxiv.org/abs/2407.06753 — local: `papers/ThreatCVE-TFIDF-2407.06753.pdf` — justifica M2-TF-IDF-primero.
+- **TF-IDF + ModernBERT/BERTopic (Electronics 2025)** — micro-prec 72.25% (+10pp), variante tópicos macro-F0.5 63.20% en clases raras (rcATT 1,490 reportes): https://www.mdpi.com/2079-9292/14/22/4434 — receta Fase 2: concatenar TF-IDF + embeddings + MLP.
+- **MITREtrieval (IEEE TNSM 2024)** — BERT frase + ontología COMAT + voto por niveles, F2 58/62/69%: sentencia→documento, aplicable a `message_sanitized` → voto por evento.
+- **TTPXHunter (ACM DTRAP 2024)** — aumento LLM de frases para TTPs minoritarios, F1 92-97%: https://dlnext.acm.org/doi/10.1145/3696427 — receta cola T1204/T1486/T1566 con `incident_signals`.
+- **ALERT (NIST 2024)** — LLM + active learning, igual performance con 77% menos anotación — si algún día anotamos a mano.
+- **AnnoCTR (LREC 2024)** — 700 reportes / 165 técnicas anotadas por experto: https://aclanthology.org/2024.lrec-main.103.pdf — benchmark cola larga.
+- Detalle + arquitectura por fases en `docs/sota_attck_multilabel.md`.
