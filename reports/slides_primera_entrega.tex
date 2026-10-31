@@ -18,26 +18,69 @@
 \tableofcontents
 \end{frame}
 
-\section{Introducción}
-\begin{frame}{1. Contexto}
+\section{Contexto: qué es un SOC}
+\begin{frame}{¿Qué es un SOC? (1/3)}
+Un \textbf{Centro de Operaciones de Seguridad (SOC)} es el equipo y la plataforma que vigilan la infraestructura de una organización: servidores, estaciones de trabajo, red, nube y aplicaciones.
+
 \begin{itemize}
-\item Un SOC vigila con decenas de productos: firewalls, EDR, identidad, nube, hipervisores, DNS.
-\item WitFoo Precinct normaliza y correlaciona con \textbf{261 reglas de detección}; agrupa se\~nales en \textbf{incidentes} (se\~nales + subgrafo de proveniencia + reporte).
-\item Dataset: \texttt{precinct6-cybersecurity} v2.1.0 — \textbf{2,011,674 eventos} en 6 días (26 jul--01 ago 2024), 4 organizaciones, 19 productos, 12 fabricantes.
+\item No vigila un solo programa, sino \textbf{decenas de productos}: firewalls, antivirus/EDR, directorio de identidad (Active Directory), nube (AWS), virtualización, correo, DNS.
+\item Cada producto escribe \textbf{registros (logs)} continuamente: syslog, auditoría de Windows, flujos de red, telemetría de endpoint, autenticaciones.
+\item Un SOC mediano genera \textbf{millones de registros por semana}.
+\end{itemize}
+
+En nuestro caso: \textbf{2,011,674 eventos en solo 6 días} (26 jul -- 01 ago 2024), de \textbf{4 organizaciones}, \textbf{19 productos} y \textbf{12 fabricantes}.
+\end{frame}
+
+\begin{frame}{¿De dónde sale el etiquetado? (2/3)}
+Los registros no llegan etiquetados. Una plataforma de correlación —\textbf{WitFoo Precinct} v6.x— los normaliza, los sanea y les aplica un catálogo de \textbf{261 reglas de detección (lead rules)}.
+
+\begin{itemize}
+\item Si una regla se cumple $\to$ el evento queda marcado.
+\item Si varias se\~nales relacionadas se agrupan $\to$ se levanta un \textbf{incidente}.
+\end{itemize}
+
+Un incidente contiene:
+\begin{itemize}
+\item las \textbf{se\~nales disparadoras} (qué eventos lo provocaron),
+\item un \textbf{subgrafo de proveniencia} (qué entidad tocó a qué entidad),
+\item un \textbf{reporte de caza} en lenguaje natural.
+\end{itemize}
+
+\textbf{Dato clave}: las etiquetas son \textbf{correlación automática}, no veredicto de un analista humano.
+\end{frame}
+
+\begin{frame}{Niveles y el problema del desbalance (3/3)}
+Cada evento cae en uno de tres niveles:
+
+\begin{table}\small
+\begin{tabular}{@{}lrl@{}}
+\toprule
+Nivel & Eventos & Significado \\
+\midrule
+benign & 1,897,153 (94.31\%) & ruido normal \\
+suspicious & 106,793 (5.31\%) & algo raro, vigilar \\
+malicious & 7,728 (0.38\%) & parte de un ataque (1,584 incidentes) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Razón de desbalance $\approx$ \textbf{245:1}. Consecuencia: un clasificador trivial que siempre dice ``benigno'' acierta el \textbf{94.31\%} — por eso elaccuracy no sirve y usaremos F1-macro y PR-AUC.
+\end{frame}
+
+\section{Motivación y pregunta}
+\begin{frame}{Motivación: por qué importa}
+\begin{itemize}
+\item \textbf{Volumen}: 2M de eventos en 6 días; sin priorización automática, el analista gasta su tiempo en ruido.
+\item \textbf{Desbalance}: 0.38\% malicioso; el accuracy miente.
+\item \textbf{Asimetría de costos}: un falso negativo (brecha) es \'ordenes de magnitud peor que un falso positivo.
+\item \textbf{Contexto}: decidir exige mensaje + MITRE + cadena, no un n\'umero.
+\item \textbf{Etiquetas imperfectas}: 2,005,877 de 2,011,674 se\~nales están \texttt{Unprocessed} (correlacionadas, nunca analizadas).
+\item \textbf{Deriva temporal}: malicious termina el 30 jul, benigno sigue al 01 ago $\to$ el split debe ser temporal.
 \end{itemize}
 \end{frame}
 
-\begin{frame}{1. Motivación}
-\begin{itemize}
-\item \textbf{Volumen}: 2M de eventos en 6 días, imposible a mano.
-\item \textbf{Desbalance extremo}: 0.38\% malicioso (IR 245:1) $\to$ accuracy miente (94.31\% con siempre-benigno).
-\item \textbf{Asimetría de costos}: FN (brecha) $>>$ FP $\to$ optimizar recall minoritario, no exactitud.
-\item \textbf{Contexto del analista}: decidir exige mensaje + MITRE + cadena, no un n\'umero.
-\end{itemize}
-\end{frame}
-
-\begin{frame}{1. Pregunta de investigación}
-\textbf{Objetivo}: estimar el nivel de riesgo de un evento con probabilidades calibradas y recomendación operativa.
+\begin{frame}{Pregunta de investigación}
+\textbf{Objetivo}: estimar el nivel de riesgo de un evento con probabilidades calibradas y recomendación operativa (\texttt{escalar} / \texttt{monitorear}).
 
 \begin{quote}
 ¿Es posible recuperar eventos maliciosos con desbalance 245:1 y deriva temporal combinando representaciones tabulares, textuales y estructurales, y qué compromiso existe con el nivel intermedio?
@@ -47,36 +90,39 @@ Específicos: (i) caracterizar datos y leakage; (ii) $\ge$5 preprocesos; (iii) 3
 \end{frame}
 
 \section{Trabajo previo}
-\begin{frame}{2. Marco de referencia}
-Tres familias:
+\begin{frame}{Panorama de la literatura}
+Tres familias revisadas:
 \begin{itemize}
-\item \textbf{Grafos de proveniencia}: NODLINK (APT online), KnowHow (CTI interpretable), FLASH (GNN temporal), threaTrace/GraphSAGE (nivel de nodo).
+\item \textbf{Grafos de proveniencia}: NODLINK (APT en l\'inea), KnowHow (CTI interpretable), FLASH (GNN temporal), threaTrace/GraphSAGE (nivel de nodo).
 \item \textbf{Mapeo a ATT\&CK desde texto}: TRAM (MITRE, + notebooks SciBERT), comparativas TF-IDF vs transformers.
 \item \textbf{Desbalance}: Focal Loss; formulaciones sensibles al costo (FN $>>$ FP).
 \end{itemize}
-Dos casos se analizan en detalle, uno por estructura y otro por texto.
+Dos casos se analizan en detalle: uno por \textbf{estructura} (grafo) y otro por \textbf{texto}.
 \end{frame}
 
-\begin{frame}{2. Caso 1: Devign (NeurIPS 2019)}
-\textbf{Enfoque}: GNN (GGNN + módulo Conv) sobre representación compuesta del código (AST + dependencias de control/datos). Tarea: \textbf{binaria a nivel función} (¿vulnerable?).
+\begin{frame}{Caso 1: Devign (NeurIPS 2019) — grafo}
+\textbf{Qué hace}: una red neuronal de grafos que aprende sobre representaciones del código en forma de grafo.
 \begin{itemize}
-\item \textbf{Datos}: etiquetados manualmente, $\sim$600 h-persona, 4 librerías C (Linux, QEMU, Wireshark, FFmpeg); código real complejo.
-\item \textbf{Resultado}: \textbf{+10.51\% accuracy / +8.68\% F1} vs baselines; +27.99\% F1 vs analizadores estáticos; 74.11\% en 40 CVEs nuevos.
+\item Representación compuesta: AST como esqueleto + dependencias de control y de datos como aristas.
+\item Modelo: GGNN + m\'odulo \textbf{Conv} que selecciona jer\'arquicamente nodos relevantes.
+\item \textbf{Tarea}: \textbf{clasificación binaria a nivel de función} — ¿es vulnerable o no?
 \end{itemize}
-Lección: precedente del componente de grafo. Contraste: etiquetas caras/limpias vs nuestras automáticas/ruidosas.
+\textbf{Datos}: etiquetados \textbf{manualmente} ($\sim$600 horas-persona) de \textbf{4 librerías populares en C}: Linux Kernel, QEMU, Wireshark, FFmpeg — código real complejo, no sintético.
+
+\textbf{Resultado}: supera a los baselines en promedio \textbf{+10.51\% accuracy y +8.68\% F1}; +27.99\% F1 vs analizadores estáticos; 74.11\% en 40 CVEs nuevos.
 \end{frame}
 
-\begin{frame}{2. Caso 2: CVSS-BERT (IEEE ICMLA 2021)}
-\textbf{Enfoque}: trabaja con \textbf{texto, no código}. \textbf{8 clasificadores BERT}, uno por métrica del vector CVSS, desde la descripción del CVE (45,926 CVEs 2018--2020).
-\begin{itemize}
-\item \textbf{Motivación}: al publicarse una vuln solo hay descripción; el análisis experto tarda días.
-\item \textbf{Resultado}: accuracy 83.79--96.07\% por métrica; severidad MAE 0.73, 55.3\% match exacto $\to$ muy cerca del experto. Incluye saliency explicable.
-\item \textbf{Limitación}: los puntajes CVSS \textbf{varían según quién asigna} (hasta 0.8 pts NVD vs otros; 1.3 por versión; degradación aguas abajo hasta 77\%) $\to$ etiquetas dependen del contexto.
-\end{itemize}
-Lección: precedente del componente de texto; su límite fundamenta nuestras limitaciones.
+\begin{frame}{Caso 2: CVSS-BERT (ICMLA 2021) — texto}
+\textbf{Qué hace}: trabaja con \textbf{texto, no con código}. Entrena \textbf{varios clasificadores BERT, uno por cada métrica del vector CVSS}, a partir de la \textbf{descripción textual} de la vulnerabilidad.
+
+\textbf{Motivación}: cuando se publica una vulnerabilidad, \textbf{solo hay una descripción}, y el análisis experto (vector CVSS) puede tardar d\'ias con miles de CVEs diarios.
+
+\textbf{Datos}: 45,926 CVEs (2018--2020) de NVD. \textbf{Resultado}: accuracy 83.79--96.07\% por métrica; la severidad calculada queda \textbf{muy cerca del experto} (MAE 0.73; 55.3\% coincidencia exacta). Incluye saliency para explicar.
+
+\textbf{Limitación}: estudios posteriores muestran que \textbf{los puntajes CVSS varían según quién los asigna} (NVD frente a otras fuentes) $\to$ las etiquetas dependen del contexto.
 \end{frame}
 
-\begin{frame}{2. Síntesis y brecha}
+\begin{frame}{Síntesis y brecha}
 \begin{table}\small
 \begin{tabular}{@{}llll@{}}
 \toprule
@@ -89,12 +135,50 @@ Se\~nal & +10.51\% acc & MAE 0.73 & cascada + compromiso \\
 \bottomrule
 \end{tabular}
 \end{table}
-\textbf{Brecha}: la literatura opera sobre código o descripciones de vulnerabilidades, no sobre telemetría de operación en tiempo real con desbalance extremo, deriva temporal y humano en el bucle.
+\textbf{Brecha}: la literatura opera sobre \textbf{código fuente} o \textbf{descripciones de vulnerabilidades}, pero no sobre \textbf{telemetría de operación en tiempo real} con desbalance extremo, deriva temporal y humano en el bucle.
+\end{frame}
+
+\section{Descubrimientos del EDA}
+\begin{frame}{EDA: desbalance y cobertura temporal}
+\begin{center}
+\includegraphics[width=0.38\linewidth]{figures/label_distribution.pdf}
+\includegraphics[width=0.38\linewidth]{figures/temporal_volume.pdf}
+\end{center}
+\textbf{Desbalance} (escala log): benign domina por \'ordenes de magnitud. \textbf{Temporal}: los leads maliciosos \textbf{terminan el 30-07}, el tr\'afico benigno contin\'ua al 01-08 $\to$ entrenar con shuffle har\'ia trampa; el split ser\'a \textbf{temporal}.
+\end{frame}
+
+\begin{frame}{EDA: desbalance por organización y origen del ruido}
+\begin{itemize}
+\item \textbf{ORG-0004} concentra 995,985 eventos (49.5\%) y 4,176 maliciosos; \textbf{ORG-0001} aporta solo 4,968 $\to$ sesgo declarado.
+\item Top productos: \textbf{AWS Instance Backup} (543k) y \textbf{Windows Active Directory} (421k) explican la mayor parte del volumen: el SOC vive filtrando respaldos y auditoría.
+\item \texttt{firewall\_action}, lo que mejor entiende un modelo tabular, es minoría frente a la auditoría.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{EDA: calidad, faltantes y fuga de información}
+\begin{itemize}
+\item \textbf{\texttt{severity} 49\% vacía}: no se imputa con mediana; se trata como \textbf{nivel propio} (string vacío). Hay ~991k eventos sin severidad.
+\item \textbf{Fuga (leakage)}: \texttt{attack\_techniques}, \texttt{mo\_name}, \texttt{suspicion\_score}, \texttt{matched\_rules} están \textbf{vacíos en benign} $\to$ son priors del motor, \textbf{no deben usarse como features}.
+\item \texttt{label\_confidence} se deriva del nivel $\to$ excluida.
+\item Duplicados por \texttt{artifact\_id}: ninguno (clave única).
+\end{itemize}
+\end{frame}
+
+\begin{frame}{EDA: hipótesis que guían los modelos}
+Tres hipótesis verificadas en la exploración:
+
+\begin{itemize}
+\item \textbf{H1}: los tokens de explotación (\texttt{T1190}, \texttt{exploit}) separan malicious $\to$ justifica el \textbf{modelo de texto}.
+\item \textbf{H2}: los vecinos en $\pm$5 min (bloqueos, fallos de login) delatan movimiento lateral invisible en una fila $\to$ justifica el \textbf{modelo de grafo}.
+\item \textbf{H3}: el nivel \textbf{suspicious} sí es recuperable con campos tabulares $\to$ el modelo tabular sirve como base.
+\end{itemize}
+
+Tambi\'en se verific\'o que ATT\&CK en vivo tiene solo \textbf{6 técnicas} (cabeza T1190 trivial + cola larga sin soporte).
 \end{frame}
 
 \section{Metodología}
-\begin{frame}{3. Definición del problema}
-\textbf{Clasificación supervisada multiclase}: $f: x \mapsto (y, p)$ con $y \in \{$benign, suspicious, malicious$\}$.
+\begin{frame}{Definición del problema}
+\textbf{Clasificación supervisada multiclase}: $f: x \mapsto (y, p)$, con $y \in \{$benign, suspicious, malicious$\}$.
 
 Representación $x$ en tres niveles:
 \begin{itemize}
@@ -105,28 +189,9 @@ Representación $x$ en tres niveles:
 Condicionantes: desbalance 245:1, distribución no estacionaria, humano en el bucle.
 \end{frame}
 
-\begin{frame}{3. Dataset y exploración}
-\begin{table}\small
-\begin{tabular}{@{}lrr@{}}
-\toprule
-Nivel & Eventos & \% \\
-\midrule
-benign & 1,897,153 & 94.31 \\
-suspicious & 106,793 & 5.31 \\
-malicious & 7,728 & 0.38 \\
-\bottomrule
-\end{tabular}
-\end{table}
-Además: 238,511 se\~nales históricas, 47,585 nodos / 1,740,438 aristas, 51,371 incidentes con reporte.
-\begin{center}
-\includegraphics[width=0.38\linewidth]{figures/label_distribution.pdf}
-\includegraphics[width=0.38\linewidth]{figures/temporal_volume.pdf}
-\end{center}
-\end{frame}
-
-\begin{frame}{3. Preprocesamiento (P1--P5)}
+\begin{frame}{Preprocesamiento (P1--P5)}
 \begin{itemize}
-\item \textbf{P1} Codificación categórica consciente del saneamiento (ausentes = nivel propio, no mediana).
+\item \textbf{P1} Codificación categórica consciente del saneamiento (ausentes = nivel propio).
 \item \textbf{P2} Características temporales + partición temporal anti-leakage.
 \item \textbf{P3} Desbalance: muestreo estratificado + ponderación de clases (sin SMOTE sobre codificadas).
 \item \textbf{P4} Vectorización del texto del registro (TF-IDF 5k).
@@ -135,23 +200,23 @@ Además: 238,511 se\~nales históricas, 47,585 nodos / 1,740,438 aristas, 51,371
 Cumple el requisito de al menos tres metodologías.
 \end{frame}
 
-\begin{frame}{3. Modelos y complejidad}
+\begin{frame}{Modelos y complejidad}
 \begin{itemize}
 \item \textbf{M1 tabular} (gradient boosting, ponderado): fit crece con árboles$\times$filas$\times$características; inferencia = recorrido raíz-hoja.
 \item \textbf{M2 texto}: concatena vectorización del mensaje + tabular; costo extra lineal en longitud del mensaje.
 \item \textbf{M3 grafo}: agrega vecindario en ventana y alimenta clasificador; costo por evento según tama\~no del vecindario.
 \end{itemize}
-\textbf{Cascada de servicio}: M1 ordena la cola $\to$ M2 confirma con evidencia textual $\to$ M3 confirma con evidencia estructural.
+\textbf{Cascada}: M1 ordena la cola $\to$ M2 confirma con evidencia textual $\to$ M3 confirma con evidencia estructural.
 \end{frame}
 
-\begin{frame}{3. Diagrama del proceso}
+\begin{frame}{Diagrama del proceso}
 \begin{center}
 \includegraphics[width=0.9\linewidth]{figures/architecture.pdf}
 \end{center}
-Desde la captura y saneamiento, pasando por las 261 reglas y el preprocesamiento, hasta la cascada de modelos y la consola del analista.
+De la captura y saneamiento, por las 261 reglas y el preprocesamiento, hasta la cascada de modelos y la consola del analista.
 \end{frame}
 
-\begin{frame}{3. Protocolo de evaluación}
+\begin{frame}{Protocolo de evaluación}
 \begin{itemize}
 \item \textbf{Partición temporal}: entrenar con el pasado, evaluar con el futuro (corte = cuantil 80 de la marca de tiempo).
 \item \textbf{Métricas}: F1-macro y \'area bajo precisi\'on-recuerdo por clase; recall malicioso a FPR fijo.
@@ -161,28 +226,27 @@ Desde la captura y saneamiento, pasando por las 261 reglas y el preprocesamiento
 \end{frame}
 
 \section{Experimentos}
-\begin{frame}{4. Experimentos planeados}
+\begin{frame}{Experimentos planeados}
 \begin{itemize}
-\item \textbf{E1 (base tabular)}: M1 sobre campos. Hipótesis: recupera benign/suspicious, colapsa en malicious $\to$ l\'inea base honesta.
-\item \textbf{E2 (texto)}: M2 + mensaje. Hip\'otesis: eleva sustancialmente el recall malicioso (vocabulario de explotaci\'on).
+\item \textbf{E1 (base tabular)}: M1 sobre campos. Hipótesis: recupera benign/suspicious, colapsa en malicious.
+\item \textbf{E2 (texto)}: M2 + mensaje. Hip\'otesis: eleva sustancialmente el recall malicioso.
 \item \textbf{E3 (estructura)}: M3 + vecindario. Hip\'otesis: iguala E2 por mecanismo distinto y refleja movimiento lateral.
 \end{itemize}
-\textbf{Ablaciones}: (i) codificaci\'on del texto (frecuencias vs contextual); (ii) radio de la ventana temporal.
+\textbf{Ablaciones}: (i) codificación del texto (frecuencias vs contextual); (ii) radio de la ventana temporal.
 \end{frame}
 
-\begin{frame}{4. Análisis previsto y despliegue}
+\begin{frame}{Análisis previsto y despliegue}
 \begin{itemize}
-\item Matriz de confusi\'on normalizada por fila: hacia qu\'e clase se desplaza el error minoritario.
+\item Matriz de confusión normalizada por fila: hacia qu\'e clase se desplaza el error minoritario.
 \item Explicitar el \textbf{compromiso}: recuperar la clase minoritaria vs preservar el nivel intermedio.
-\item \textbf{Despliegue}: servicio FastAPI en :8000 (\texttt{/score}, \texttt{/queue}, \texttt{/incident}) + consola React en el mismo origen (Docker multi-stage), con bit\'acora de feedback para re-entrenar.
+\item \textbf{Despliegue}: FastAPI en :8000 (\texttt{/score}, \texttt{/queue}, \texttt{/incident}) + consola React en el mismo origen (Docker), con bit\'acora de feedback para re-entrenar.
 \end{itemize}
 \end{frame}
 
-\section{Conclusión}
-\begin{frame}{5. Limitaciones y trabajo futuro}
+\begin{frame}{Limitaciones y trabajo futuro}
 \textbf{Limitaciones previstas}
 \begin{itemize}
-\item Etiquetas de correlación automática, no de analista (oráculo imperfecto; mayoría sin procesar).
+\item Etiquetas de correlación automática, no de analista (oráculo imperfecto).
 \item Distribución desigual por tiempo y organización $\to$ generalización restringida.
 \item Análogo a CVSS: la etiqueta \textbf{depende del asignador} y su contexto.
 \end{itemize}
@@ -193,15 +257,38 @@ Desde la captura y saneamiento, pasando por las 261 reglas y el preprocesamiento
 \end{itemize}
 \end{frame}
 
-\begin{frame}{Referencias}
+\section{Referencias}
+\begin{frame}{Referencias (1/2)}
 \tiny
-Devign (NeurIPS 2019, arXiv:1909.03496) · CVSS-BERT (ICMLA 2021, arXiv:2111.08510) ·
-Schwab \& Gwerder (Berna, 2020) · LADC 2024 (doi 10.1145/3697090.3697109) ·
-arXiv:2112.10356 · NODLINK (2311.02331) · KnowHow (2509.05698) · FLASH (S\&P 2024) ·
-threaTrace (2111.04333) · GraphSAGE (1706.02216) · TRAM (MITRE CTID) ·
-TF-IDF vs transformers (2407.06753) · Focal Loss (1708.02002) ·
-Cost-sensitive IDS (0807.2043) · ATT\&CK \url{https://attack.mitre.org/} ·
-Dataset \url{https://huggingface.co/datasets/witfoo/precinct6-cybersecurity}
+\begin{itemize}
+\item \textbf{Devign} — Y. Zhou, S. Liu, J. Siow, X. Du, Y. Liu. \textit{Devign: Effective Vulnerability Identification by Learning Comprehensive Program Semantics via Graph Neural Networks}. NeurIPS 2019. arXiv:1909.03496. \newline
+\textit{Por qué}: precedente del componente de grafo; demuestra que la estructura supera a los analizadores estáticos.
+\item \textbf{CVSS-BERT} — M. R. Shahid, H. Debar. \textit{CVSS-BERT: Explainable NLP to Determine the Severity of a Computer Security Vulnerability from its Description}. IEEE ICMLA 2021. arXiv:2111.08510. \newline
+\textit{Por qué}: precedente del componente de texto; su saliency inspira nuestra explicabilidad.
+\item \textbf{Schwab \& Gwerder} — \textit{An Investigation into Vulnerability Databases}. Univ. de Berna, 2020. \newline
+\textit{Por qué}: evidencia que los puntajes divergen hasta 0.8 pts entre NVD y otros (y 1.3 por versión) $\to$ sustenta la limitación de las etiquetas.
+\item \textbf{LADC 2024} — \textit{How Context Impacts Vulnerability Severity: An Analysis of Product-Specific CVSS Scores}. doi 10.1145/3697090.3697109. \newline
+\textit{Por qué}: NVD tiende a puntuar mayor que los CNA; el desacuerdo se concentra en sub-métricas dependientes del producto.
+\item \textbf{Le et al.} — \textit{An Investigation into Inconsistency of Software Vulnerability Severity across Data Sources}. arXiv:2112.10356, 2021. \newline
+\textit{Por qué}: la inconsistencia entre fuentes degrada hasta 77\% la predicción aguas abajo.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Referencias (2/2)}
+\tiny
+\begin{itemize}
+\item \textbf{NODLINK} — arXiv:2311.02331 (NDSS 2024). Detección de APT en línea sobre grafos de proveniencia.
+\item \textbf{KnowHow} — arXiv:2509.05698 (NDSS 2026). CTI + proveniencia, interpretable y con baja tasa de falsos positivos.
+\item \textbf{FLASH} — doi 10.1109/SP54263.2024.00139 (IEEE S\&P 2024). GNN + semántica temporal.
+\item \textbf{threaTrace} — arXiv:2111.04333. GraphSAGE a nivel de nodo para amenazas en hosts.
+\item \textbf{GraphSAGE} — W. Hamilton et al., NeurIPS 2017. Aprendizaje inductivo en grafos grandes (base de M3).
+\item \textbf{TRAM} — MITRE Center for Threat-Informed Defense. \texttt{github.com/center-for-threat-informed-defense/tram}. Mapeador de reportes a ATT\&CK + notebooks SciBERT.
+\item \textbf{TF-IDF vs transformers} — arXiv:2407.06753. TF-IDF gana con poco dato (P 75\%, F1 64\%) $\to$ justifica empezar por TF-IDF.
+\item \textbf{Focal Loss} — T.-Y. Lin et al., ICCV 2017. Pérdida para desbalance extremo.
+\item \textbf{Cost-sensitive IDS} — arXiv:0807.2043. Matriz de costos FN $>>$ FP $\to$ justifica no usar accuracy.
+\item \textbf{ATT\&CK} — MITRE, \textit{ATT\&CK Design and Philosophy}, 2020. \texttt{attack.mitre.org}.
+\item \textbf{Dataset} — WitFoo Precinct6 v2.1.0, Apache-2.0. \texttt{huggingface.co/datasets/witfoo/precinct6-cybersecurity}.
+\end{itemize}
 \end{frame}
 
 \end{document}
