@@ -1,7 +1,7 @@
 # Primera entrega completa — propuesta con 2 casos verificados
 
 > Consigna (`contexto/course_project_guide.pdf`, 8va sesión): presentación con **(1) introducción y motivación, (2) revisión de literatura, (3) solución/proceso + diagrama, (4) dataset + visualización**. Formato: **slides, 15 min + 5 min preguntas**.
-> Mapa de dónde está cada cosa en el repo: `docs/primer_entregable_mapa.md`.
+> Desarrollo completo del punto 1: `docs/desarrollo_punto1.md`. Propuesta IEEE: `reports/propuesta_primera_entrega.pdf`.
 
 ## 1. Introducción y motivación (nuestro problema)
 

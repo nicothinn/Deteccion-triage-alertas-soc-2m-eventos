@@ -2,7 +2,7 @@
 
 > Todo el proyecto en un solo documento: fenómeno, dataset, problema ML, preproceso (5 metodologías), 3 modelos + complejidad, evaluación con números reales, despliegue, reproducción, limitaciones y referencias. Complementa al paper [`reports/paper.pdf`](../reports/paper.pdf) y al glosario no-técnico [`glosario_soc_no_tecnico.md`](glosario_soc_no_tecnico.md).
 >
-> Fichas estándar: [`datasheet.md`](datasheet.md) (datos) · [`model-card-m1.md`](model-card-m1.md) · [`model-card-m2.md`](model-card-m2.md) · [`model-card-m3.md`](model-card-m3.md) · [`factsheet-changelog.md`](factsheet-changelog.md). EDA reproducible: [`../reports/eda/resumen_eda.md`](../reports/eda/resumen_eda.md) (`src/eda_report.py`, checklist OMSCS/Insper 2026).
+> Ficha de datos: [`datasheet.md`](datasheet.md) (Gebru). Modelos y métricas: `reports/paper.pdf` §5–6 y `models/*_metrics.json`. EDA reproducible: [`../reports/eda/resumen_eda.md`](../reports/eda/resumen_eda.md) (`src/eda_report.py`, checklist OMSCS/Insper 2026).
 
 ## 1. Fenómeno y problema a abordar
 

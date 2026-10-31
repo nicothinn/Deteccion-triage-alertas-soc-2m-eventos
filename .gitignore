@@ -11,11 +11,14 @@ data/**/*.parquet
 papers/*.pdf
 contexto/*.pdf
 
-# build latex (paper.pdf si se sube)
+# build latex (paper.pdf si se sube) + web
 *.aux
 *.log
 *.out
 *.toc
+*.nav
+*.snm
+soc-ui/dist/
 
 # runtime
 data/feedback.csv

@@ -132,4 +132,4 @@ Medido en casa: M4-LogReg micro 0.75/macro 0.25, M4b-XGB micro 0.79/macro 0.26 (
 - **TTPXHunter (ACM DTRAP 2024)** — aumento LLM de frases para TTPs minoritarios, F1 92-97%: https://dlnext.acm.org/doi/10.1145/3696427 — receta cola T1204/T1486/T1566 con `incident_signals`.
 - **ALERT (NIST 2024)** — LLM + active learning, igual performance con 77% menos anotación — si algún día anotamos a mano.
 - **AnnoCTR (LREC 2024)** — 700 reportes / 165 técnicas anotadas por experto: https://aclanthology.org/2024.lrec-main.103.pdf — benchmark cola larga.
-- Detalle + arquitectura por fases en `docs/sota_attck_multilabel.md`.
+- Ver experimentos M4/M4b en `notebooks/m4_multilabel_attack_out.ipynb` y `notebooks/m4b_xgb_pertecnica_out.ipynb`.
