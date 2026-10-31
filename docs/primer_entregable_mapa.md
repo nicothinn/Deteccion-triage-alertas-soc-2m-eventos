@@ -19,7 +19,7 @@
 - `notebooks/eda_precinct6.ipynb` (12 secciones) + `src/eda_report.py` → `reports/eda/resumen_eda.md` + `reports/eda/diccionario_datos.csv` (38 columnas, missingness, leakage, drift).
 - Tablas de tiers/escala en `paper.tex` §2 y `docs/documentacion_end_to_end.md` §2.
 
-## Papers de arXiv revisados (todos con PDF local salvo indicación)
+## Papers de arXiv revisados (13 con PDF local en `papers/` + E-GraphSAGE solo-link)
 
 | arXiv | Título | Qué sacamos | Local |
 |---|---|---|---|
