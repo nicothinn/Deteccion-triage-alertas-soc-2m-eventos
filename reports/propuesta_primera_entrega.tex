@@ -18,11 +18,11 @@
 
 \begin{abstract}
 Los SOC se ahogan en alertas: 2,011,674 eventos en 6 d\'ias con solo 0.38\% malicioso (IR 245:1).
-Proponemos un sistema de triage que clasifica cada evento en benigno/sospechoso/malicioso con
-probabilidades, pistas MITRE ATT\&CK y decisi\'on operativa en $<$50\,ms.
-Revisamos dos casos verificados (Devign, GNN sobre c\'odigo; CVSS-BERT, texto a severidad),
-describimos la soluci\'on en cascada (tabular $\to$ texto $\to$ grafo) con su diagrama,
-y presentamos el dataset con visualizaciones.
+Proponemos construir un sistema de triage que clasifique cada evento en benigno/sospechoso/malicioso
+con probabilidades, pistas MITRE ATT\&CK y decisi\'on operativa en $<$50\,ms.
+Presentamos la motivaci\'on, dos casos de literatura verificados (Devign, CVSS-BERT),
+el dise\~no de la soluci\'on en cascada (tabular $\to$ texto $\to$ grafo) con su diagrama,
+y el dataset con visualizaciones exploratorias.
 \end{abstract}
 
 \section{Introducci\'on y motivaci\'on}
@@ -30,56 +30,58 @@ y presentamos el dataset con visualizaciones.
 Un Centro de Operaciones de Seguridad (SOC) vigila la infraestructura con decenas de productos
 (syslog, auditor\'ia Windows, flujos VPC, telemetr\'ia endpoint). WitFoo Precinct correlaciona
 todo con 261 reglas en \emph{incidentes} (se\~nales + subgrafo de proveniencia + reporte).
-El problema que abordamos es el \textbf{triage de alertas}: dado un evento, predecir su tier
+El problema a abordar es el \textbf{triage de alertas}: dado un evento, predecir su tier
 \texttt{benign} / \texttt{suspicious} / \texttt{malicious} con probabilidades calibradas,
 hints ATT\&CK y decisi\'on \texttt{escalar} vs.\ \texttt{monitorear} en $<$50\,ms para rankear la cola.
 
 Es importante por volumen (2M de eventos en 6 d\'ias, imposible a mano), por desbalance extremo
 (0.38\% malicioso: el accuracy miente, un siempre-benigno acierta 94\%), por el cambio de contexto
-del analista (necesita mensaje + MITRE + cadena, no un n\'umero), porque las etiquetas son
+del analista (necesita mensaje + MITRE + cadena, no un n\'umero), porque las etiquetas ser\'an
 correlaci\'on autom\'atica imperfecta (Unprocessed en 2,005,877/2,011,674), y porque hay deriva
-temporal (malicious termina 07-30, benigno sigue a 08-01: el split debe ser temporal, no shuffle).
+temporal (malicious termina 07-30, benigno sigue a 08-01: el split deber\'a ser temporal, no shuffle).
 
 \section{Revisi\'on de literatura}
 
 \textbf{Caso 1 — Devign} (Zhou et al., NeurIPS 2019): GNN (GGNN + m\'odulo Conv) sobre grafos de
 c\'odigo (AST + dependencias), binaria a nivel funci\'on con datasets manuales ($\sim$600 h-persona,
 Linux/QEMU/Wireshark/FFmpeg): \textbf{+10.51\% accuracy / +8.68\% F1} vs baselines, +27.99\% F1 vs
-analizadores est\'aticos, 74.11\% en 40 CVEs nuevos. Lecci\'on: precedente GNN de nuestro M3;
-contraste: ellos etiquetas caras/limpias, nosotros Precinct baratas/ruidosas.
+analizadores est\'aticos, 74.11\% en 40 CVEs nuevos. Lecci\'on: precedente GNN del componente de
+grafo que planeamos; contraste: ellos etiquetas caras/limpias, nosotros Precinct baratas/ruidosas.
 
 \textbf{Caso 2 — CVSS-BERT} (Shahid \& Debar, IEEE ICMLA 2021): 8 clasificadores BERT (uno por
 m\'etrica CVSS v3.1) desde la descripci\'on del CVE (45,926 CVEs 2018--2020): accuracy 83.79--96.07\%,
 severidad MAE 0.73 (55.3\% match exacto), con saliency explicable. L\'imite: el CVSS var\'ia seg\'un
-qui\'en asigna. Lecci\'on: precedente texto$\to$severidad de nuestro M2 (TF-IDF+XGBoost, camino MiniLM);
-su saliency es prima de nuestro \texttt{/explain}; su advertencia funda nuestra secci\'on de limitaciones.
+qui\'en asigna. Lecci\'on: precedente texto$\to$severidad del componente de texto que planeamos
+(TF-IDF primero, MiniLM despu\'es); su saliency inspira nuestra explicabilidad; su advertencia funda
+nuestras limitaciones previstas.
 
 \begin{table}[htbp]
-\caption{Casos vs.\ nuestro proyecto.}
+\caption{Casos vs.\ proyecto planeado.}
 \label{tab:casos}
 \centering
 \begin{tabular}{@{}llll@{}}
 \toprule
- & Devign & CVSS-BERT & Nosotros \\
+ & Devign & CVSS-BERT & Nosotros (plan) \\
 \midrule
 Input & grafo c\'odigo & texto CVE & tabular + texto + subgrafo \\
 Etiquetas & manuales 600\,h & NVD experto & Precinct auto \\
 Modelo & GGNN+Conv & 8$\times$BERT & LightGBM / TF-IDF+XGB / vecindario+XGB \\
-Se\~nal & +10.51\% acc & MAE 0.73 & cascada M1$\to$M2$\to$M3 \\
+Se\~nal & +10.51\% acc & MAE 0.73 & cascada M1$\to$M2$\to$M3 + explicar \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Marco adicional: provenance-graph IDS (NODLINK, KnowHow, FLASH, threaTrace/GraphSAGE), CTI+LLM
-(OMNISEC, PROVSYN, TRAM con notebooks SciBERT), imbalance (Focal Loss, cost-sensitive: FN$>>$FP),
-TF-IDF que gana a BERT con poco dato, y CybORG (despliegue como agente SOC). Detalle y links en
-\texttt{docs/referencias\_primer\_entregable.md} y \texttt{docs/casos\_primera\_entrega.md}.
+Marco adicional a explorar: provenance-graph IDS (NODLINK, KnowHow, FLASH, threaTrace/GraphSAGE),
+CTI+LLM (OMNISEC, PROVSYN, TRAM con notebooks SciBERT), imbalance (Focal Loss, cost-sensitive:
+FN$>>$FP), TF-IDF que gana a BERT con poco dato, y CybORG (despliegue como agente SOC). Detalle y
+links en \texttt{docs/referencias\_primer\_entregable.md} y \texttt{docs/casos\_primera\_entrega.md}.
 
-\section{Soluci\'on y proceso}
+\section{Soluci\'on y proceso (plan)}
 
-\texttt{signals} $\to$ prepro P1--P5 (one-hot sanitizado; temporales + split temporal anti-leakage;
-anti-desbalance sin SMOTE; TF-IDF 5k; subgrafo $\pm$5\,min) $\to$ M1 rankea / M2 confirma por texto /
-M3 confirma por cadena $\to$ fusi\'on con regla de triage $\to$ consola (cola, incidente, cobertura MITRE).
+Planeamos: \texttt{signals} $\to$ prepro P1--P5 (one-hot sanitizado; temporales + split temporal
+anti-leakage; anti-desbalance sin SMOTE; TF-IDF 5k; subgrafo $\pm$5\,min) $\to$ M1 tabular que rankea /
+M2 de texto que confirma / M3 de grafo que confirma por cadena $\to$ fusi\'on con regla de triage
+$\to$ consola (cola, incidente, cobertura MITRE).
 
 \begin{figure}[htbp]
 \centering
@@ -88,9 +90,10 @@ M3 confirma por cadena $\to$ fusi\'on con regla de triage $\to$ consola (cola, i
 \label{fig:arch}
 \end{figure}
 
-Despliegue: FastAPI en :8000 (\texttt{/score}, \texttt{/queue}, \texttt{/incident},
-\texttt{/score\_graph}) + consola React en el mismo origen (Docker multi-stage), con bit\'acora de
-feedback para re-entrenar.
+Evaluaremos con split temporal 80/20 (pasado entrena, futuro prueba), m\'etrica F1-macro + PR-AUC por
+clase (nunca accuracy) y an\'alisis de complejidad por modelo. El despliegue previsto es FastAPI en
+:8000 (\texttt{/score}, \texttt{/queue}, \texttt{/incident}) + consola React en el mismo origen
+(Docker multi-stage), con bit\'acora de feedback para re-entrenar.
 
 \section{Dataset: explicaci\'on y visualizaci\'on}
 
@@ -117,13 +120,14 @@ malicious (1,584 incidentes) & 7,728 & 0.38 \\
 \centering
 \includegraphics[width=0.48\linewidth]{figures/label_distribution.pdf}
 \includegraphics[width=0.48\linewidth]{figures/temporal_volume.pdf}
-\caption{Desbalance (log) y cobertura temporal: malicious termina 07-30 $\to$ split temporal.}
+\caption{Exploraci\'on preliminar: desbalance (log) y cobertura temporal (malicious termina 07-30 $\to$ split temporal).}
 \label{fig:data}
 \end{figure}
 
-EDA reproducible (\texttt{src/eda\_report.py} $\to$ \texttt{reports/eda/}): diccionario de 38 columnas,
-missingness (\texttt{severity} 49\% vac\'ia = nivel propio), leakage (ATT\&CK priors excluidos de features),
-drift y tres hip\'otesis verificadas (tokens T1190 $\to$ M2; vecinos $\pm$5\,min $\to$ M3; tier medio tabular).
+La exploraci\'on preliminar (\texttt{src/eda\_report.py} $\to$ \texttt{reports/eda/}) muestra el
+diccionario de 38 columnas, \texttt{severity} 49\% vac\'ia (= nivel propio, no mediana), priors ATT\&CK
+que deber\'an excluirse de features (leakage), y tres hip\'otesis a verificar: tokens T1190 $\to$
+componente de texto; vecinos $\pm$5\,min $\to$ componente de grafo; tier medio recuperable tabular.
 
 \begin{thebibliography}{9}
 \bibitem{devign} Y.~Zhou \emph{et al.}, ``Devign: effective vulnerability identification by learning comprehensive program semantics via graph neural networks,'' in \emph{NeurIPS}, 2019. arXiv:1909.03496.
