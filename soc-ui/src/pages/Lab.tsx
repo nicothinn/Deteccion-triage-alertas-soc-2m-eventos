@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 
@@ -80,7 +81,7 @@ export default function Lab() {
           <h3 className="font-semibold">Configuración M1</h3>
           <dl className="mono mt-2 grid grid-cols-2 gap-1 text-xs text-txt/90">
             {Object.entries(data.config).map(([k, v]) => (
-              <><dt className="text-mut">{k}</dt><dd>{String(v)}</dd></>
+              <Fragment key={k}><dt className="text-mut">{k}</dt><dd>{String(v)}</dd></Fragment>
             ))}
           </dl>
           <p className="mt-2 text-xs text-mut">Complejidad fit O(T·n·d): 200 árboles × 112,848 filas. Inferencia un pase raíz-hoja por árbol: &lt;50ms.</p>

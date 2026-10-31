@@ -189,6 +189,7 @@ export default function Queue() {
           </>
         )}
       </section>
+      </div>
     </div>
   );
 }
