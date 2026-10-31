@@ -136,12 +136,37 @@ Se especifican cinco metodolog\'ias, cumpliendo el requisito de al menos tres. \
 \subsection{Modelos y an\'alisis de complejidad}
 Se proponen tres modelos. \textbf{M1}, un modelo tabular de gradient boosting con ponderaci\'on de clases, cuyo costo de entrenamiento crece con el n\'umero de \'arboles, las filas y las caracter\'isticas binarizadas, y cuya inferencia es un recorrido ra\'iz-hoja por \'arbol. \textbf{M2}, un modelo de texto que concatena la vectorizaci\'on del mensaje con las caracter\'isticas tabulares; su costo adicional es la vectorizaci\'on, lineal en la longitud del mensaje. \textbf{M3}, un modelo de grafo que agrega el vecindario en la ventana temporal y alimenta un clasificador; su costo por evento depende del tama\~no del vecindario. El orden de servicio previsto es una cascada: M1 ordena la cola, M2 confirma con evidencia textual y M3 confirma con evidencia estructural.
 
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{figures/architecture.pdf}
+\caption{Diagrama esquem\'atico del proceso: desde la captura hasta la consola del analista, incluyendo las etapas de preprocesamiento y la cascada de modelos.}
+\label{fig:arch}
+\end{figure}
+
 \subsection{Protocolo de evaluaci\'on}
 La partici\'on ser\'a \textbf{temporal}: se entrena con el pasado y se eval\'ua con el futuro, usando el cuantil 80 de la marca de tiempo como corte. Las m\'etricas ser\'an F1-macro y \'area bajo la curva precisi\'on-recuerdo por clase, complementadas con el recall de la clase maliciosa a una tasa de falsos positivos fija, coherente con la asimetr\'ia de costos discutida. La exactitud se reportar\'a \'unicamente para evidenciar que no es informativa bajo esta raz\'on de desbalance.
 
 %----------------------------------------------------------------
+\section{Experimentos planeados y an\'alisis}
+\label{sec:experimentos}
+
+\subsection{Diseño experimental}
+El diseño responde directamente a la pregunta de investigaci\'on: se trata de determinar qu\'e aporta cada representaci\'on del evento y a qu\'e costo. Se ejecutar\'an tres experimentos y dos ablaciones.
+
+\textbf{Experimento 1 (base tabular).} Se entrenar\'a el modelo M1 sobre los campos del evento con ponderaci\'on de clases. La hip\'otesis es que este modelo recuperar\'a el nivel benigno y el nivel sospechoso, pero colapsar\'a en el nivel malicioso bajo la raz\'on de desbalance 245:1. Este resultado, de confirmarse, constituye la l\'inea base honesta del estudio y la motivaci\'on de los experimentos siguientes.
+
+\textbf{Experimento 2 (evidencia textual).} Se entrenar\'a M2 a\~nadiendo la vectorizaci\'on del mensaje crudo. La hip\'otesis es que los tokens caracter\'isticos de explotaci\'on permiten elevar de forma sustancial el recall de la clase maliciosa respecto al Experimento 1.
+
+\textbf{Experimento 3 (evidencia estructural).} Se entrenar\'a M3 incorporando la agregaci\'on del vecindario en la ventana temporal. La hip\'otesis es que este modelo iguala al Experimento 2 en recuperaci\'on de la clase maliciosa mediante un mecanismo distinto (correlaci\'on temporal y de entidades, no vocabulario), y que resulta el \'unico capaz de reflejar movimiento lateral.
+
+\textbf{Ablaciones.} Primero, se comparar\'an codificaciones del texto (representaci\'on por frecuencias frente a codificadores contextuales) para determinar si la ganancia del Experimento 2 depende del vocabulario o de la sem\'antica. Segundo, se variar\'a el radio de la ventana temporal del Experimento 3 para medir la sensibilidad del componente estructural.
+
+\subsection{An\'alisis previsto}
+Adem\'as de las m\'etricas agregadas, se examinar\'a la matriz de confusi\'on normalizada por fila para identificar hacia qu\'e clase se desplaza el error de la clase minoritaria, y se comparar\'a el comportamiento de los tres modelos en el nivel sospechoso. Se prev\'e explicitar el compromiso entre recuperar la clase minoritaria y preservar el nivel intermedio, en lugar de reportar una \'unica cifra resumen. Se documentar\'an las semillas y la infraestructura de c\'omputo para permitir la replicaci\'on.
+
+%----------------------------------------------------------------
 \section{Conclusi\'on y trabajo futuro}
-Este documento present\'o el dise\~no de un estudio sobre triage de alertas SOC con desbalance extremo y deriva temporal. Se justific\'o el problema, se revisaron dos casos de literatura con resultados y limitaciones verificadas, y se especific\'o la metodolog\'ia completa: representaci\'on, preprocesamiento, modelos y protocolo de evaluaci\'on.
+Este documento present\'o el dise\~no de un estudio sobre triage de alertas SOC con desbalance extremo y deriva temporal. Se justific\'o el problema, se revisaron dos casos de literatura con resultados y limitaciones verificadas, y se especific\'o la metodolog\'ia completa: representaci\'on, preprocesamiento, modelos y protocolo de evaluaci\'on. Se describieron adem\'as los experimentos y ablaciones previstos, formulando hip\'otesis falsables para cada representaci\'on.
 
 Se anticipan las siguientes limitaciones. Primero, las etiquetas provienen de la correlaci\'on autom\'atica de la plataforma y no de un analista, por lo que constituyen un or\'aculo imperfecto; la mayor\'ia de las se\~nales permanecen sin procesar. Segundo, la distribuci\'on temporal y por organizaci\'on es desigual, lo que restringe la generalizaci\'on. Tercero, de forma an\'aloga a lo documentado para CVSS~\cite{schwab,gomes,le}, la etiqueta depende del asignador y por tanto del contexto.
 
