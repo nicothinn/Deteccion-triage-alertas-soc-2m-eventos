@@ -1,0 +1,147 @@
+% Primera entrega — propuesta. Compila: pdflatex slides_primera_entrega.tex (2 veces)
+\documentclass[10pt]{beamer}
+\usepackage[spanish]{babel}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usetheme{default}
+\usecolortheme{seahorse}
+\title{Triage de alertas SOC sobre 2M de eventos (Precinct6)}
+\subtitle{Propuesta de proyecto — Aprendizaje Automático}
+\author{Author Name}
+\date{8va sesión · 15 min + 5 min preguntas}
+
+\begin{document}
+\frame{\titlepage}
+
+\begin{frame}{1. Problema: ¿qué abordamos?}
+\textbf{Triage de alertas SOC}: dado un evento de seguridad, predecir su tier
+(\texttt{benign} / \texttt{suspicious} / \texttt{malicious}) con probabilidades,
+hints MITRE ATT\&CK y decisión operativa (\texttt{escalar} vs \texttt{monitorear}).
+\begin{itemize}
+\item Entrada: 1 evento (campos + mensaje crudo + vecindario $\pm$5\,min).
+\item Salida: $(y, p)$ + técnicas + triage, en $<50$\,ms para rankear la cola.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{1. Motivación: ¿por qué importa?}
+\begin{itemize}
+\item \textbf{Volumen}: 2,011,674 eventos en 6 días, 4 orgs, 19 productos — imposible a mano.
+\item \textbf{Desbalance extremo}: solo 0.38\% malicious (IR 245:1); el accuracy miente (94\% con siempre-benign).
+\item \textbf{Contexto}: decidir exige mensaje + MITRE + cadena, no solo un score (disposition $=$ \texttt{Unprocessed} en 2,005,877/2,011,674).
+\item Ground truth = correlación automática de Precinct: oráculo fuerte pero imperfecto.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{2. Literatura (1/3): panorama}
+\begin{itemize}
+\item \textbf{Provenance-graph IDS}: NODLINK (NDSS 24, APT online), KnowHow (NDSS 26, interpretable),
+FLASH (S\&P 24, GNN temporal), threaTrace/GraphSAGE (base de M3).
+\item \textbf{CTI + LLM}: OMNISEC (RAG), PROVSYN (síntesis contra desbalance), TRAM MITRE (mapeo a ATT\&CK + notebooks).
+\item \textbf{Imbalance/texto}: Focal Loss, cost-sensitive IDS (FN$>>$FP), TF-IDF gana a BERT con poco dato (P 75\%, F1 64\%).
+\item Simuladores: CybORG (despliegue como agente SOC).
+\end{itemize}
+\end{frame}
+
+\begin{frame}{2. Literatura (2/3): Caso Devign}
+\textbf{Devign} (Zhou et al., NeurIPS 2019): GNN sobre grafos de código, binaria a nivel función.
+\begin{itemize}
+\item Datos manuales $\sim$600 h-persona, 4 libs C (Linux, QEMU, Wireshark, FFmpeg).
+\item \textbf{+10.51\% accuracy / +8.68\% F1} vs baselines; +27.99\% F1 vs analizadores; 74.11\% en 40 CVEs nuevos.
+\item Lección para nosotros: \textbf{precedente GNN de M3} — grafos + aprendizaje $>$ reglas.
+Contraste: ellos etiquetas caras/limpias, nosotros Precinct baratas/ruidosas.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{2. Literatura (3/3): Caso CVSS-BERT + tabla}
+\textbf{CVSS-BERT} (Shahid \& Debar, IEEE ICMLA 2021): 8 BERTs (uno por métrica CVSS) desde la descripción del CVE (45,926 CVEs);
+severidad MAE 0.73, 55.3\% match exacto, con saliency explicable. Límite: el CVSS varía según quién asigna.
+\begin{table}\tiny
+\begin{tabular}{@{}llll@{}}
+\toprule
+ & Devign & CVSS-BERT & Nosotros \\
+\midrule
+Input & grafo código & texto CVE & tabular + texto + subgrafo \\
+Etiquetas & manuales 600\,h & NVD experto & Precinct auto \\
+Modelo & GGNN+Conv & 8$\times$BERT & LightGBM / TF-IDF+XGB / vecindario+XGB \\
+Lección & grafos $>$ estáticos & texto$\to$severidad + explicar & cascada M1$\to$M2$\to$M3 + explicar \\
+\bottomrule
+\end{tabular}
+\end{table}
+\end{frame}
+
+\begin{frame}{3. Solución y proceso}
+\texttt{signals} $\to$ prepro P1--P5 $\to$ M1 rankea / M2 confirma texto / M3 confirma cadena $\to$ fusión $\to$ consola.
+\begin{center}
+\includegraphics[width=0.95\linewidth]{figures/architecture.pdf}
+\end{center}
+Prepro: one-hot sanitizado, temporales + split temporal 80/20 (anti-leakage), anti-desbalance sin SMOTE, TF-IDF 5k, subgrafo $\pm$5\,min. Modelos + complejidad en el paper.
+\end{frame}
+
+\begin{frame}{3. Modelos (qué mide cada uno)}
+\begin{table}\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+ & M1 tabular & M2 texto & M3 grafo \\
+\midrule
+F1-macro & 0.599 & 0.708 & \textbf{0.719} \\
+Recall malicious & 0.004 & 0.970 & 0.962 \\
+PR-AUC$_{mal}$ & 0.30 & 0.83 & 0.82 \\
+Latencia & $<$50\,ms & $\sim$100\,ms & $\sim$s \\
+\bottomrule
+\end{tabular}
+\end{table}
+M1 recupera suspicious (R 0.96) pero pierde malicious; M2/M3 cazan malicious a costa de suspicious.
+Extra: M4 multi-label ATT\&CK (micro 0.75/macro 0.25) $\to$ capa honesta tier$\to$técnicas en \texttt{/score}.
+\end{frame}
+
+\begin{frame}{4. Dataset}
+\texttt{witfoo/precinct6-cybersecurity} v2.1.0 (Apache-2.0): captura live 2024-07-26 $\to$ 08-01.
+\begin{table}\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Tier & Filas & \% \\
+\midrule
+benign & 1,897,153 & 94.31 \\
+suspicious & 106,793 & 5.31 \\
+malicious (1,584 incidentes) & 7,728 & 0.38 \\
+\midrule
+Nodos / aristas / incidentes+reporte & \multicolumn{2}{l}{47,585 / 1,740,438 / 51,371} \\
+Reglas / productos / vendors & \multicolumn{2}{l}{261 / 19 / 12 observados} \\
+\bottomrule
+\end{tabular}
+\end{table}
+38 columnas por señal + \texttt{incident\_signals} histórico (238k) + GraphML por incidente.
+\end{frame}
+
+\begin{frame}{4. Visualización}
+\begin{center}
+\includegraphics[width=0.48\linewidth]{figures/label_distribution.pdf}
+\includegraphics[width=0.48\linewidth]{figures/temporal_volume.pdf}
+\end{center}
+IR 245:1 (log) y cobertura temporal: malicious termina 07-30, benign sigue a 08-01 $\to$ split temporal, no shuffle.
+EDA completo reproducible: \texttt{src/eda\_report.py} $\to$ \texttt{reports/eda/} (diccionario, missingness, leakage, drift, hipótesis).
+\end{frame}
+
+\begin{frame}{Demo y cierre}
+Demo (20 min, \texttt{docker compose up} $\to$ :8000): Cola $\to$ puntuar (ATT\&CK) $\to$ vecindario M3 $\to$ Incidente (cadena+reporte) $\to$ Cobertura MITRE.
+\begin{itemize}
+\item Contribución: pipeline reproducible + 3 prepros + 3 modelos con complejidad + consola desplegada.
+\item Límite honesto: labels Precinct $\ne$ verdad analista; T1190+ORG-0004 dominan; M4b no desplegado (P 0.08).
+\item Siguiente: ATT\&CK multi-label con SciBERT (notebooks TRAM) + aumento TTPXHunter para la cola.
+\end{itemize}
+\textbf{Gracias — preguntas (5 min).}
+\end{frame}
+
+\begin{frame}{Referencias}
+\tiny
+Devign, NeurIPS 2019 (arXiv:1909.03496) · CVSS-BERT, ICMLA 2021 (arXiv:2111.08510) ·
+NODLINK NDSS 24 (2311.02331) · KnowHow NDSS 26 (2509.05698) · FLASH S\&P 24 ·
+PROVSYN (2506.06226) · OMNISEC (2503.03108) · Survey (2006.01722) · threaTrace (2111.04333) ·
+GraphSAGE (1706.02216) · CybORG (2002.10667) · Focal Loss (1708.02002) ·
+TF-IDF-vs-transformers (2407.06753) · Two-stage LLM (2411.18755) ·
+TRAM (MITRE CTID) · ATT\&CK \url{https://attack.mitre.org/} ·
+Dataset \url{https://huggingface.co/datasets/witfoo/precinct6-cybersecurity}
+\end{frame}
+
+\end{document}
