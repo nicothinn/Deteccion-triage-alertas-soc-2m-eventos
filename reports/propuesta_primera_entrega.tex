@@ -2,13 +2,14 @@
 \documentclass[conference]{IEEEtran}
 \usepackage[spanish]{babel}
 \usepackage{cite}
+\usepackage{amsmath,amssymb}
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage[hidelinks]{hyperref}
 
 \begin{document}
 
-\title{Triage de alertas SOC sobre 2M de eventos (Precinct6): propuesta de proyecto}
+\title{Triage de alertas SOC sobre 2M de eventos con modelos tabulares, de texto y de grafo: propuesta de proyecto}
 
 \author{\IEEEauthorblockN{Author Name}
 \IEEEauthorblockA{Curso: Aprendizaje Autom\'atico --- Semestre 8}
@@ -17,128 +18,152 @@
 \maketitle
 
 \begin{abstract}
-Los SOC se ahogan en alertas: 2,011,674 eventos en 6 d\'ias con solo 0.38\% malicioso (IR 245:1).
-Proponemos construir un sistema de triage que clasifique cada evento en benigno/sospechoso/malicioso
-con probabilidades, pistas MITRE ATT\&CK y decisi\'on operativa en $<$50\,ms.
-Presentamos la motivaci\'on, dos casos de literatura verificados (Devign, CVSS-BERT),
-el dise\~no de la soluci\'on en cascada (tabular $\to$ texto $\to$ grafo) con su diagrama,
-y el dataset con visualizaciones exploratorias.
+Los centros de operaciones de seguridad se enfrentan a un volumen de alertas que ning\'un equipo humano puede revisar: nuestra captura contiene 2,011,674 eventos en seis d\'ias con apenas 0.38\% de eventos maliciosos. Proponemos investigar el \emph{triage de alertas} como problema de clasificaci\'on multiclase con desbalance extremo y deriva temporal. El estudio revisa dos l\'ineas de literatura verificadas (Devign, aprendizaje sobre grafos de c\'odigo; CVSS-BERT, texto a severidad), formula la tarea de aprendizaje, especifica cinco metodolog\'ias de preprocesamiento y tres modelos con su an\'alisis de complejidad, y fija el protocolo de evaluaci\'on. Este documento presenta el dise\~no del estudio; los resultados experimentales se reportar\'an en la entrega final.
 \end{abstract}
 
-\section{Introducci\'on y motivaci\'on}
+\begin{IEEEkeywords}
+triage de alertas, desbalance de clases, SOC, grafo de proveniencia, MITRE ATT\&CK, detecci\'on de intrusiones.
+\end{IEEEkeywords}
 
-Un Centro de Operaciones de Seguridad (SOC) vigila la infraestructura con decenas de productos
-(syslog, auditor\'ia Windows, flujos VPC, telemetr\'ia endpoint). WitFoo Precinct correlaciona
-todo con 261 reglas en \emph{incidentes} (se\~nales + subgrafo de proveniencia + reporte).
-El problema a abordar es el \textbf{triage de alertas}: dado un evento, predecir su tier
-\texttt{benign} / \texttt{suspicious} / \texttt{malicious} con probabilidades calibradas,
-hints ATT\&CK y decisi\'on \texttt{escalar} vs.\ \texttt{monitorear} en $<$50\,ms para rankear la cola.
+%----------------------------------------------------------------
+\section{Introducci\'on}
+\label{sec:intro}
 
-Es importante por volumen (2M de eventos en 6 d\'ias, imposible a mano), por desbalance extremo
-(0.38\% malicioso: el accuracy miente, un siempre-benigno acierta 94\%), por el cambio de contexto
-del analista (necesita mensaje + MITRE + cadena, no un n\'umero), porque las etiquetas ser\'an
-correlaci\'on autom\'atica imperfecta (Unprocessed en 2,005,877/2,011,674), y porque hay deriva
-temporal (malicious termina 07-30, benigno sigue a 08-01: el split deber\'a ser temporal, no shuffle).
+\subsection{Contexto}
+Un centro de operaciones de seguridad (SOC) vigila la infraestructura de una organizaci\'on mediante m\'ultiples productos heterog\'eneos: firewalls y pasarelas, protecci\'on de endpoints y EDR, directorios de identidad, plataformas de nube, hipervisores y servicios de red. Cada producto emite registros de forma continua (syslog, auditor\'ia de Windows, flujos de red, telemetr\'ia de endpoint, eventos de autenticaci\'on). Una plataforma de correlaci\'on —en nuestro caso WitFoo Precinct versión 6.x— normaliza esos registros y aplica un cat\'alogo de 261 reglas de detecci\'on; cuando varias se\~nales relacionadas se agrupan, la plataforma levanta un \emph{incidente}, compuesto por las se\~nales disparadoras, un subgrafo de proveniencia que describe qu\'e entidad toc\'o a qu\'e entidad, y un reporte de caza en lenguaje natural.
 
-\section{Revisi\'on de literatura}
+El conjunto de datos empleado, \texttt{witfoo/precinct6-cybersecurity} versión 2.1.0, contiene 2,011,674 eventos capturados en producci\'on entre el 26 de julio y el 1 de agosto de 2024, pertenecientes a 4 organizaciones, 19 productos y 12 fabricantes.
 
-\textbf{Caso 1 — Devign} (Zhou et al., NeurIPS 2019): GNN (GGNN + m\'odulo Conv) sobre grafos de
-c\'odigo (AST + dependencias), binaria a nivel funci\'on con datasets manuales ($\sim$600 h-persona,
-Linux/QEMU/Wireshark/FFmpeg): \textbf{+10.51\% accuracy / +8.68\% F1} vs baselines, +27.99\% F1 vs
-analizadores est\'aticos, 74.11\% en 40 CVEs nuevos. Lecci\'on: precedente GNN del componente de
-grafo que planeamos; contraste: ellos etiquetas caras/limpias, nosotros Precinct baratas/ruidosas.
+\subsection{Motivaci\'on}
+Cuatro razones justifican el estudio. Primero, el \textbf{volumen}: 2,011,674 eventos en seis d\'ias imposibilitan la revisi\'on manual. Segundo, el \textbf{desbalance extremo}: solo 7,728 eventos (0.38\%) son leads maliciosos dentro de la ventana, frente a 1,897,153 benignos, lo que da una raz\'on de desbalance aproximada de 245:1. Bajo esa raz\'on la exactitud es una m\'etrica enga\~nosa: un clasificador trivial que siempre responda ``benigno'' alcanza 94.31\%. Tercero, la \textbf{asimetr\'ia de costos}: en seguridad el costo de un falso negativo (una brecha no detectada) es \'ordenes de magnitud mayor que el de un falso positivo, por lo que la optimizaci\'on debe orientarse al recall de la clase minoritaria y no a la exactitud global. Cuarto, el \textbf{cambio de contexto del analista}: decidir si escalar o monitorear requiere el mensaje crudo, el mapeo a MITRE ATT\&CK y la cadena del ataque, no un \'unico puntaje.
 
-\textbf{Caso 2 — CVSS-BERT} (Shahid \& Debar, IEEE ICMLA 2021): 8 clasificadores BERT (uno por
-m\'etrica CVSS v3.1) desde la descripci\'on del CVE (45,926 CVEs 2018--2020): accuracy 83.79--96.07\%,
-severidad MAE 0.73 (55.3\% match exacto), con saliency explicable. L\'imite: el CVSS var\'ia seg\'un
-qui\'en asigna. Lecci\'on: precedente texto$\to$severidad del componente de texto que planeamos
-(TF-IDF primero, MiniLM despu\'es); su saliency inspira nuestra explicabilidad; su advertencia funda
-nuestras limitaciones previstas.
+\subsection{Objetivos y pregunta de investigaci\'on}
+El objetivo general es dise\~nar y evaluar un sistema de triage que, dado un evento de seguridad, estime su nivel de riesgo con probabilidades calibradas y produzca una recomendaci\'on operativa. La pregunta de investigaci\'on que gu\'ia el estudio es:
+
+\begin{quote}
+\textit{¿Es posible recuperar eventos maliciosos en un flujo de alertas SOC con desbalance 245:1 y deriva temporal combinando representaciones tabulares, textuales y estructurales del evento, y qu\'e compromiso existe entre la recuperaci\'on de la clase minoritaria y la del nivel intermedio?}
+\end{quote}
+
+Los objetivos espec\'ificos son: (i) caracterizar el conjunto de datos y verificar la presencia de leakage y deriva temporal; (ii) implementar al menos cinco metodolog\'ias de preprocesamiento; (iii) entrenar y comparar tres modelos con an\'alisis de complejidad; (iv) desplegar el sistema como un servicio y una consola de analista.
+
+%----------------------------------------------------------------
+\section{Trabajo previo}
+\label{sec:relacionados}
+
+\subsection{Marco de referencia}
+La literatura relevante se organiza en tres familias. La primera es la \textbf{detecci\'on basada en grafos de proveniencia}, que modela la actividad del sistema como un grafo de entidades y eventos: NODLINK~\cite{nodlink} aborda detecci\'on de APT en l\'inea, KnowHow~\cite{knowhow} integra inteligencia de amenazas para reducir falsos positivos, FLASH~\cite{flash} combina redes neuronales de grafo con sem\'antica temporal, y threaTrace~\cite{threatrace} aplica GraphSAGE~\cite{graphsage} a nivel de nodo. La segunda es el \textbf{mapeo autom\'atico a MITRE ATT\&CK} desde texto, representada por TRAM~\cite{tram} y por estudios comparativos de representaciones textuales~\cite{tfidf}. La tercera agrupa t\'ecnicas para \textbf{desbalance de clases}, en particular Focal Loss~\cite{focal} y formulaciones sensibles al costo donde el costo de un falso negativo domina~\cite{cost}.
+
+Dos trabajos se analizan en detalle por su relaci\'on directa con las representaciones que emplearemos: uno opera sobre estructuras de grafo y otro sobre texto.
+
+\subsection{Caso 1: Devign — aprendizaje sobre grafos de c\'odigo}
+Zhou \emph{et al.}~\cite{devign} (NeurIPS 2019) proponen Devign, un modelo de red neuronal de grafos para identificaci\'on de vulnerabilidades. Su enfoque construye una representaci\'on compuesta del c\'odigo —\'arbol de sintaxis abstracta como esqueleto, con dependencias de control y de datos codificadas como aristas de distintos tipos— y entrena una red recurrente de grafos con compuertas m\'as un m\'odulo convolucional propio que selecciona jer\'arquicamente los nodos relevantes para la clasificaci\'on a nivel de grafo.
+
+El problema se formula como \textbf{clasificaci\'on binaria a nivel de funci\'on}: determinar si una funci\'on dada es vulnerable o no. Los datos provienen de cuatro librer\'ias populares escritas en C y fueron etiquetados manualmente, con un costo reportado de aproximadamente 600 horas-persona, empleando c\'odigo real y complejo en lugar de ejemplos sint\'eticos.
+
+El resultado reportado es una mejora promedio de \textbf{10.51\% en exactitud y 8.68\% en F1} respecto a los m\'etodos de referencia; adicionalmente supera a analizadores est\'aticos conocidos por 27.99\% de F1 promedio y alcanza 74.11\% de exactitud sobre funciones correspondientes a 40 CVE recientes.
+
+Para nuestro estudio, Devign es el precedente del componente de grafo: demuestra que una representaci\'on estructural permite capturar patrones que no aparecen en atributos aislados. El contraste relevante es el r\'egimen de etiquetado: Devign depende de anotaci\'on humana costosa y relativamente limpia, mientras que nosotros dispondremos de etiquetas autom\'aticas, baratas pero ruidosas.
+
+\subsection{Caso 2: CVSS-BERT — severidad a partir de texto}
+Shahid y Debar~\cite{cvssbert} (IEEE ICMLA 2021) abordan un problema distinto: trabajan con \textbf{texto, no con c\'odigo}. Su motivaci\'on es operativa: cuando se publica una vulnerabilidad solo se dispone de una descripci\'on textual, y el an\'alisis por expertos que asigna el vector CVSS puede tardar d\'ias, mientras el volumen diario de vulnerabilidades sigue creciendo.
+
+El enfoque entrena \textbf{varios clasificadores BERT, uno por cada m\'etrica del vector CVSS} ( vector de ataque, complejidad de ataque, privilegios requeridos, interacci\'on de usuario, alcance, e impactos en confidencialidad, integridad y disponibilidad), tomando como entrada la descripci\'on textual de la vulnerabilidad. Los valores predichos por cada clasificador se concatenan para formar el vector, a partir del cual se calcula el puntaje de severidad. Emplean 45,926 descripciones de CVE del per\'iodo 2018--2020 y reportan exactitudes por m\'etrica entre 83.79\% y 96.07\%, con un error absoluto medio de 0.73 en el puntaje de severidad y coincidencia exacta en 55.3\% de los casos: la severidad calculada queda muy cercana a la asignada por un experto humano. Incluyen adem\'as un m\'etodo de explicabilidad por gradientes que identifica las palabras m\'as influyentes en cada predicci\'on.
+
+La limitaci\'on se\~nalada por estudios posteriores es que \textbf{los puntajes CVSS var\'ian seg\'un qui\'en los asigna}. En particular, se ha documentado que los puntajes pueden divergir hasta 0.8 puntos entre NVD y otros proveedores, y hasta 1.3 puntos seg\'un la versión del est\'andar empleada~\cite{schwab}; que NVD tiende a asignar valores mayores que los CNA y que el desacuerdo aparece con mayor frecuencia en sub-m\'etricas dependientes del producto~\cite{gomes}; y que la inconsistencia entre fuentes puede degradar el desempe\~no de predicci\'on de severidad aguas abajo hasta en 77\%~\cite{le}. En consecuencia, las etiquetas dependen del contexto del asignador.
+
+Para nuestro proyecto, CVSS-BERT cumple tres funciones: es el precedente del componente de texto (descripci\'on a etiqueta), su m\'etodo de explicabilidad inspira la explicabilidad que expondremos al analista, y su limitaci\'on documentada fundamenta directamente nuestra secci\'on de limitaciones, dado que nuestras etiquetas tambi\'en provienen de un asignador autom\'atico y no de un analista humano.
+
+\subsection{S\'intesis y brecha}
+La tabla~\ref{tab:casos} resume los dos casos frente al estudio propuesto. La brecha que identificamos es la siguiente: los trabajos revisados operan sobre \textbf{c\'odigo fuente} o sobre \textbf{descripciones de vulnerabilidades}, pero no sobre \textbf{telemetr\'ia de operaci\'on en tiempo real} con desbalance extremo, deriva temporal y decisi\'on humana en el bucle. Nuestro aporte previsto es estudiar esa combinaci\'on y cuantificar el compromiso entre recuperar la clase minoritaria y preservar el nivel intermedio.
 
 \begin{table}[htbp]
-\caption{Casos vs.\ proyecto planeado.}
+\caption{Casos analizados frente al estudio propuesto.}
 \label{tab:casos}
 \centering
 \begin{tabular}{@{}llll@{}}
 \toprule
- & Devign & CVSS-BERT & Nosotros (plan) \\
+ & Devign & CVSS-BERT & Propuesto \\
 \midrule
-Input & grafo c\'odigo & texto CVE & tabular + texto + subgrafo \\
-Etiquetas & manuales 600\,h & NVD experto & Precinct auto \\
-Modelo & GGNN+Conv & 8$\times$BERT & LightGBM / TF-IDF+XGB / vecindario+XGB \\
-Se\~nal & +10.51\% acc & MAE 0.73 & cascada M1$\to$M2$\to$M3 + explicar \\
+Entrada & grafo de c\'odigo & texto de CVE & tabular + texto + subgrafo \\
+Tarea & binaria (funci\'on) & 8 m\'etricas $\to$ puntaje & 3 niveles + ATT\&CK \\
+Etiquetas & manuales (600\,h) & NVD (experto) & Precinct (autom\'atico) \\
+Modelo & GGNN + Conv & 8$\times$BERT & LightGBM / TF-IDF+XGB / vecindario+XGB \\
+Se\~nal & +10.51\% acc., +8.68\% F1 & MAE 0.73 & cascada + compromiso \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Marco adicional a explorar: provenance-graph IDS (NODLINK, KnowHow, FLASH, threaTrace/GraphSAGE),
-CTI+LLM (OMNISEC, PROVSYN, TRAM con notebooks SciBERT), imbalance (Focal Loss, cost-sensitive:
-FN$>>$FP), TF-IDF que gana a BERT con poco dato, y CybORG (despliegue como agente SOC). Detalle y
-links en \texttt{docs/referencias\_primer\_entregable.md} y \texttt{docs/casos\_primera\_entrega.md}.
+%----------------------------------------------------------------
+\section{Metodolog\'ia}
+\label{sec:metodo}
 
-\section{Soluci\'on y proceso (plan)}
+\subsection{Definici\'on del problema de aprendizaje}
+Sea $x$ la representaci\'on de un evento de seguridad y $y \in \{\text{benign}, \text{suspicious}, \text{malicious}\}$ su nivel. El objetivo es aprender $f: x \mapsto (y, p)$, donde $p$ es un vector de probabilidades por clase. La representaci\'on $x$ se construye en tres niveles: campos tabulares del evento, el mensaje crudo saneado, y un subgrafo de su vecindario temporal.
 
-Planeamos: \texttt{signals} $\to$ prepro P1--P5 (one-hot sanitizado; temporales + split temporal
-anti-leakage; anti-desbalance sin SMOTE; TF-IDF 5k; subgrafo $\pm$5\,min) $\to$ M1 tabular que rankea /
-M2 de texto que confirma / M3 de grafo que confirma por cadena $\to$ fusi\'on con regla de triage
-$\to$ consola (cola, incidente, cobertura MITRE).
+Se trata de un problema de \textbf{clasificaci\'on supervisada multiclase} con tres caracter\'isticas que condicionan el dise\~no: desbalance extremo (245:1), distribuci\'on no estacionaria en el tiempo, y presencia de un humano en el bucle de decisi\'on. Por ello la tarea no se reduce a maximizar exactitud.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.95\linewidth]{figures/architecture.pdf}
-\caption{Diagrama esquem\'atico end-to-end (requerido).}
-\label{fig:arch}
-\end{figure}
-
-Evaluaremos con split temporal 80/20 (pasado entrena, futuro prueba), m\'etrica F1-macro + PR-AUC por
-clase (nunca accuracy) y an\'alisis de complejidad por modelo. El despliegue previsto es FastAPI en
-:8000 (\texttt{/score}, \texttt{/queue}, \texttt{/incident}) + consola React en el mismo origen
-(Docker multi-stage), con bit\'acora de feedback para re-entrenar.
-
-\section{Dataset: explicaci\'on y visualizaci\'on}
-
-\texttt{witfoo/precinct6-cybersecurity} v2.1.0 (Apache-2.0): captura live 2024-07-26 $\to$ 08-01,
-4 orgs, 19 productos / 12 vendors, 38 columnas por se\~nal, m\'as \texttt{incident\_signals}
-hist\'orico (238,511), 47,585 nodos / 1,740,438 aristas y 51,371 incidentes con reporte.
+\subsection{Conjunto de datos}
+Se emplea \texttt{witfoo/precinct6-cybersecurity} v2.1.0 (licencia Apache-2.0). La captura viva contiene 2,011,674 eventos con 38 columnas por se\~nal. La distribuci\'on de clases se presenta en la tabla~\ref{tab:labels}. Adicionalmente se dispone de 238,511 se\~nales hist\'oricas de incidentes, 47,585 nodos y 1,740,438 aristas de proveniencia, y 51,371 incidentes con reporte asociado.
 
 \begin{table}[htbp]
-\caption{Tiers live (IR $\approx$ 245:1).}
+\caption{Distribuci\'on de niveles en la captura viva.}
 \label{tab:labels}
 \centering
 \begin{tabular}{@{}lrr@{}}
 \toprule
-Tier & Filas & \% \\
+Nivel & Eventos & Proporci\'on \\
 \midrule
-benign & 1,897,153 & 94.31 \\
-suspicious & 106,793 & 5.31 \\
-malicious (1,584 incidentes) & 7,728 & 0.38 \\
+benign & 1,897,153 & 94.31\% \\
+suspicious & 106,793 & 5.31\% \\
+malicious & 7,728 & 0.38\% \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+Las figuras~\ref{fig:data} muestran la exploraci\'on inicial: el desbalance y la cobertura temporal. Se observa que los leads maliciosos terminan el 30 de julio mientras el tr\'afico benigno contin\'ua hasta el 1 de agosto.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.48\linewidth]{figures/label_distribution.pdf}
 \includegraphics[width=0.48\linewidth]{figures/temporal_volume.pdf}
-\caption{Exploraci\'on preliminar: desbalance (log) y cobertura temporal (malicious termina 07-30 $\to$ split temporal).}
+\caption{Exploraci\'on inicial: desbalance de clases (escala logar\'itmica) y cobertura temporal.}
 \label{fig:data}
 \end{figure}
 
-La exploraci\'on preliminar (\texttt{src/eda\_report.py} $\to$ \texttt{reports/eda/}) muestra el
-diccionario de 38 columnas, \texttt{severity} 49\% vac\'ia (= nivel propio, no mediana), priors ATT\&CK
-que deber\'an excluirse de features (leakage), y tres hip\'otesis a verificar: tokens T1190 $\to$
-componente de texto; vecinos $\pm$5\,min $\to$ componente de grafo; tier medio recuperable tabular.
+\subsection{Preprocesamiento}
+Se especifican cinco metodolog\'ias, cumpliendo el requisito de al menos tres. \textbf{P1}: codificaci\'on categ\'orica consciente del saneamiento, en la que los valores ausentes se conservan como un nivel propio en lugar de imputarse por tendencia central. \textbf{P2}: derivaci\'on de caracter\'isticas temporales y partici\'on temporal para evitar fugas de informaci\'on. \textbf{P3}: manejo del desbalance por muestreo estratificado y ponderaci\'on de clases, descartando sobremuestreo sint\'etico sobre variables codificadas. \textbf{P4}: vectorizaci\'on del texto del registro. \textbf{P5}: construcci\'on de subgrafos de vecindario en una ventana de $\pm$5 minutos compartiendo host o credencial.
+
+\subsection{Modelos y an\'alisis de complejidad}
+Se proponen tres modelos. \textbf{M1}, un modelo tabular de gradient boosting con ponderaci\'on de clases, cuyo costo de entrenamiento crece con el n\'umero de \'arboles, las filas y las caracter\'isticas binarizadas, y cuya inferencia es un recorrido ra\'iz-hoja por \'arbol. \textbf{M2}, un modelo de texto que concatena la vectorizaci\'on del mensaje con las caracter\'isticas tabulares; su costo adicional es la vectorizaci\'on, lineal en la longitud del mensaje. \textbf{M3}, un modelo de grafo que agrega el vecindario en la ventana temporal y alimenta un clasificador; su costo por evento depende del tama\~no del vecindario. El orden de servicio previsto es una cascada: M1 ordena la cola, M2 confirma con evidencia textual y M3 confirma con evidencia estructural.
+
+\subsection{Protocolo de evaluaci\'on}
+La partici\'on ser\'a \textbf{temporal}: se entrena con el pasado y se eval\'ua con el futuro, usando el cuantil 80 de la marca de tiempo como corte. Las m\'etricas ser\'an F1-macro y \'area bajo la curva precisi\'on-recuerdo por clase, complementadas con el recall de la clase maliciosa a una tasa de falsos positivos fija, coherente con la asimetr\'ia de costos discutida. La exactitud se reportar\'a \'unicamente para evidenciar que no es informativa bajo esta raz\'on de desbalance.
+
+%----------------------------------------------------------------
+\section{Conclusi\'on y trabajo futuro}
+Este documento present\'o el dise\~no de un estudio sobre triage de alertas SOC con desbalance extremo y deriva temporal. Se justific\'o el problema, se revisaron dos casos de literatura con resultados y limitaciones verificadas, y se especific\'o la metodolog\'ia completa: representaci\'on, preprocesamiento, modelos y protocolo de evaluaci\'on.
+
+Se anticipan las siguientes limitaciones. Primero, las etiquetas provienen de la correlaci\'on autom\'atica de la plataforma y no de un analista, por lo que constituyen un or\'aculo imperfecto; la mayor\'ia de las se\~nales permanecen sin procesar. Segundo, la distribuci\'on temporal y por organizaci\'on es desigual, lo que restringe la generalizaci\'on. Tercero, de forma an\'aloga a lo documentado para CVSS~\cite{schwab,gomes,le}, la etiqueta depende del asignador y por tanto del contexto.
+
+El trabajo futuro contempla extender la tarea a predicci\'on multi-etiqueta de t\'ecnicas ATT\&CK y explorar codificadores contextuales entrenables sobre los reportes de incidente disponibles.
 
 \begin{thebibliography}{9}
-\bibitem{devign} Y.~Zhou \emph{et al.}, ``Devign: effective vulnerability identification by learning comprehensive program semantics via graph neural networks,'' in \emph{NeurIPS}, 2019. arXiv:1909.03496.
-\bibitem{cvssbert} M.~R.~Shahid y H.~Debar, ``CVSS-BERT: explainable NLP to determine the severity of a computer security vulnerability from its description,'' in \emph{IEEE ICMLA}, 2021. arXiv:2111.08510.
-\bibitem{witfoo} WitFoo, Inc., ``Precinct6 cybersecurity dataset v2.1.0,'' HuggingFace, 2026.
+\bibitem{devign} Y.~Zhou, S.~Liu, J.~Siow, X.~Du y Y.~Liu, ``Devign: effective vulnerability identification by learning comprehensive program semantics via graph neural networks,'' en \emph{NeurIPS}, 2019. arXiv:1909.03496.
+\bibitem{cvssbert} M.~R.~Shahid y H.~Debar, ``CVSS-BERT: explainable natural language processing to determine the severity of a computer security vulnerability from its description,'' en \emph{IEEE ICMLA}, 2021, doi 10.1109/ICMLA52953.2021.00256. arXiv:2111.08510.
+\bibitem{schwab} S.~Schwab y B.~Gwerder, ``An investigation into vulnerability databases,'' Universidad de Berna, 2020.
+\bibitem{gomes} ``How context impacts vulnerability severity: an analysis of product-specific CVSS scores,'' en \emph{LADC}, 2024, doi 10.1145/3697090.3697109.
+\bibitem{le} T.~H.~M.~Le \emph{et al.}, ``An investigation into inconsistency of software vulnerability severity across data sources,'' arXiv:2112.10356, 2021.
+\bibitem{witfoo} WitFoo, Inc., ``WitFoo Precinct6 cybersecurity dataset v2.1.0,'' HuggingFace, 2026.
 \bibitem{attack} MITRE, ``ATT\&CK design and philosophy,'' 2020. \texttt{attack.mitre.org}.
-\bibitem{nodlink} D.~Huang \emph{et al.}, ``NODLINK: online APT detection,'' in \emph{NDSS}, 2024. arXiv:2311.02331.
-\bibitem{tram} MITRE CTID, ``Threat report ATT\&CK mapper (TRAM),'' \texttt{github.com/center-for-threat-informed-defense/tram}.
-\bibitem{focal} T.-Y.~Lin \emph{et al.}, ``Focal loss for dense object detection,'' in \emph{ICCV}, 2017.
-\bibitem{graphsage} W.~Hamilton \emph{et al.}, ``Inductive representation learning on large graphs,'' in \emph{NeurIPS}, 2017.
-\bibitem{cyborg} M.~Stanton \emph{et al.}, ``CybORG: a gym for cyber operations,'' arXiv:2002.10667, 2020.
+\bibitem{nodlink} D.~Huang \emph{et al.}, ``NODLINK: online APT detection,'' en \emph{NDSS}, 2024. arXiv:2311.02331.
+\bibitem{knowhow} ``KnowHow: CTI + provenance, interpretable,'' en \emph{NDSS}, 2026. arXiv:2509.05698.
+\bibitem{flash} ``FLASH: GNN + semantic-temporal embedding,'' en \emph{IEEE S\&P}, 2024, doi 10.1109/SP54263.2024.00139.
+\bibitem{threatrace} S.~Wang \emph{et al.}, ``threaTrace: detecting host threats via GraphSAGE,'' arXiv:2111.04333, 2021.
+\bibitem{graphsage} W.~Hamilton, Z.~Ying y J.~Leskovec, ``Inductive representation learning on large graphs,'' en \emph{NeurIPS}, 2017.
+\bibitem{tram} MITRE Center for Threat-Informed Defense, ``Threat report ATT\&CK mapper (TRAM),'' \texttt{github.com/center-for-threat-informed-defense/tram}.
+\bibitem{tfidf} R.~Othman, B.~Rossi y B.~Russo, ``A comparison of vulnerability feature extraction methods from textual attack patterns,'' arXiv:2407.06753, 2024.
+\bibitem{focal} T.-Y.~Lin, P.~Goyal, R.~Girshick, K.~He y P.~Doll\'ar, ``Focal loss for dense object detection,'' en \emph{ICCV}, 2017.
+\bibitem{cost} ``Cost-sensitive intrusion detection,'' arXiv:0807.2043, 2008.
 \end{thebibliography}
 
 \end{document}
