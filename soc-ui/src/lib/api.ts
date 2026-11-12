@@ -47,6 +47,8 @@ export interface ModelMetrics {
          hamming: number; subset_acc: number; n_train: number; n_test: number } | null;
   m4b?: { model: string; labels: string[]; micro_f1: number; macro_f1: number;
          hamming: number; subset_acc: number; n_train: number; n_test: number } | null;
+  m4c?: Record<string, { micro_f1: number; macro_f1: number; hamming: number; subset_acc: number }> | null;
+  m5?: { model: string; recall_malicious: number; recall_suspicious: number; pr_auc: number; roc_auc: number; fpr_benigno: number } | null;
 }
 
 export interface ExplainFeat { feature: string; importance: number; value: number; active: boolean }

@@ -94,6 +94,7 @@ class LogIn(BaseModel):
 
 class LogOut(BaseModel):
     label: str
+    m1_label: str
     proba: dict
     techniques: list
     tactics: list
@@ -101,6 +102,11 @@ class LogOut(BaseModel):
     model: str
     triage: str  # regla operativa: block+malicious→escalar
     m2: dict | None = None  # cascada texto: {label, proba, model}
+
+def fuse_prediction(m1_label: str, m2_label: str | None, action: str):
+    label = "malicious" if "malicious" in (m1_label, m2_label) else m1_label
+    triage = "escalar" if label == "malicious" or (label == "suspicious" and action == "block") else "monitorear"
+    return label, triage
 
 def featurize(log: LogIn) -> pd.DataFrame:
     now = datetime.now(timezone.utc)
@@ -148,10 +154,11 @@ def predict_m2(log: LogIn):
 
 GCOLS = ["artifact_id", "timestamp", "event_time", "org_id", "message_type",
          "stream_name", "product_name", "vendor_name", "pipeline",
-         "src_ip", "dst_ip", "username", "action", "severity", "protocol"]
+         "src_ip", "dst_ip", "username", "action", "severity", "protocol",
+         "message_sanitized"]
 
 def predict_graph(artifact_id: str):
-    # ponytail: slice ±5min por timestamp (pushdown) + match de entidades; sin indice en RAM
+    # ponytail: solo los 5 min previos (pushdown) + match de entidades; sin indice en RAM
     m = MODEL["m3"]
     if m is None:
         raise HTTPException(400, "M3 no cargado")
@@ -165,7 +172,7 @@ def predict_graph(artifact_id: str):
     win = pq.read_table(
         SIG, columns=["artifact_id", "timestamp", "message_type", "action",
                       "src_ip", "dst_ip", "username"],
-        filters=[("timestamp", ">=", t - 300), ("timestamp", "<=", t + 300)]).to_pandas()
+                        filters=[("timestamp", ">=", t - 300), ("timestamp", "<", t)]).to_pandas()
     keys = {f"{org}|{c['src_ip']}", f"{org}|{c['dst_ip']}", f"{org}|{c['username']}"} - {f"{org}|"}
     # match por cualquiera de las 3 entidades (host origen, host destino, credencial)
     wfull = win.copy()
@@ -190,7 +197,7 @@ def predict_graph(artifact_id: str):
         "pipeline": str(c["pipeline"]), "org_id": org, "action": str(c["action"]),
         "severity": str(c["severity"]), "protocol": str(c["protocol"]),
         "hour": pd.to_datetime(t, unit="s", utc=True).hour,
-        "msg_len": 0, "lag_h": float((t - float(c["event_time"])) / 3600) if c["event_time"] != "" else -1,
+        "msg_len": len(str(c["message_sanitized"])), "lag_h": float((t - float(c["event_time"])) / 3600) if c["event_time"] != "" else -1,
         **dict(zip(m["meta"]["gfeats"], feats)),
     }])
     X = m["tab"].transform(row[m["meta"]["cats"] + m["meta"]["nums"] + m["meta"]["gfeats"]])
@@ -242,7 +249,7 @@ def model_metrics():
     h = ROOT / "models" / "m3_metrics.json"
     if h.exists():
         out["m3"] = json.loads(h.read_text())
-    for m in ("m4_metrics.json", "m4b_metrics.json"):
+    for m in ("m4_metrics.json", "m4b_metrics.json", "m4c_exps.json", "m5_metrics.json"):
         f = ROOT / "models" / m
         if f.exists():
             out[m.split("_")[0]] = json.loads(f.read_text())
@@ -359,17 +366,15 @@ def incident(inc_id: str, limit: int = 200):
 @app.post("/score", response_model=LogOut)
 def score(log: LogIn):
     try:
-        label, proba = predict(featurize(log))
+        m1_label, proba = predict(featurize(log))
         m2 = predict_m2(log)
     except Exception as e:
         raise HTTPException(400, str(e))
     # cascada: M1 rankea, M2 confirma por texto; basta uno en malicious para escalar.
     # tecnicas del tier decidido (oraculo M4), no del message_type.
-    mal = label == "malicious" or (m2 is not None and m2["label"] == "malicious")
-    tier = "malicious" if mal else label
-    tech, tact = TIER_TECH.get(tier, ([], []))
-    triage = "escalar" if (mal or (label == "suspicious" and log.action == "block")) else "monitorear"
-    return LogOut(label=label, proba=proba, techniques=tech, tactics=tact,
+    label, triage = fuse_prediction(m1_label, m2["label"] if m2 else None, log.action)
+    tech, tact = TIER_TECH.get(label, ([], []))
+    return LogOut(label=label, m1_label=m1_label, proba=proba, techniques=tech, tactics=tact,
                   techniques_source=TECH_SRC,
                   model=MODEL["name"], triage=triage, m2=m2)
 

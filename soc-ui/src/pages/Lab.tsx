@@ -64,6 +64,30 @@ export default function Lab() {
         </section>
       )}
 
+      {data.m4c && (
+        <section className="mt-4 rounded-md border border-line bg-panel p-4">
+          <h3 className="panel-title">M4c ATT&CK + grafo (4 exps × XGB) — mejor E2 tab+grafo micro {(data.m4c.E2_tab ?? data.m4c["E2_tab+grafo"])?.micro_f1}</h3>
+          <p className="mono mt-1 text-xs text-txt/90">
+            E0 tab micro {data.m4c.E0_tab?.micro_f1} / macro {data.m4c.E0_tab?.macro_f1} · E1 txt+tab (=M4b) micro {data.m4c["E1_txt+tab"]?.micro_f1} / macro {data.m4c["E1_txt+tab"]?.macro_f1} · E2 tab+grafo micro {data.m4c["E2_tab+grafo"]?.micro_f1} / macro {data.m4c["E2_tab+grafo"]?.macro_f1} · E3 full micro {data.m4c["E3_txt+tab+grafo"]?.micro_f1} / macro {data.m4c["E3_txt+tab+grafo"]?.macro_f1}
+          </p>
+          <p className="mono mt-1 text-xs text-mut">
+            El grafo aporta en multilabel (T1204 F1 0.39→0.65, T1041 P 0.08→0.35) pero T1041/T1567 siguen R~0.05: ni con grafo se separan a nivel evento → hints por mapeo, no modelo — notebooks/m4c
+          </p>
+        </section>
+      )}
+
+      {data.m5 && (
+        <section className="mt-4 rounded-md border border-line bg-panel p-4">
+          <h3 className="panel-title">M5 anomalía IF tabular (solo-benigno) — recall mal {data.m5.recall_malicious}</h3>
+          <p className="mono mt-1 text-xs text-txt/90">
+            PR-AUC {data.m5.pr_auc} · ROC-AUC {data.m5.roc_auc} (invertido 0.83: ordena al revés) · FPR benigno {data.m5.fpr_benigno} · recall sus {data.m5.recall_suspicious}
+          </p>
+          <p className="mono mt-1 text-xs text-mut">
+            Lo malicious tabular es denso (firewall_action) y el IF lo ve normal: confirma M1 — sin texto (M2) o estructura (M3) no se caza · notebooks/m5
+          </p>
+        </section>
+      )}
+
       {data.m3 && (
         <section className="mt-4 rounded-md border border-line bg-panel p-4">
           <h3 className="panel-title">M3 grafo (SAGE-mean ±5min) — F1-macro {data.m3.f1_macro}</h3>
