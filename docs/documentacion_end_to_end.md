@@ -101,7 +101,9 @@ Figuras: `reports/figures/{label_distribution,temporal_volume,confusion_m1,archi
 
 ## 8. Limitaciones y trabajo futuro
 
-Labels = correlación Precinct, no verdad analista; T1190 domina y ORG-0004 sesga (49.5%); `severity` medio vacía por construcción; subgrafos heredan priors de reglas, no causalidad confirmada. Benign 1.0/1.0 refleja separabilidad por volumen en este sample con split temporal estricto, no leakage. Futuro: ATT&CK multi-label (mejor tarea que tiers), GraphSAGE real inductivo, MiniLM fine-tune + SHAP, reportes NL con LLM+RAG.
+Labels = correlación Precinct, no verdad analista; T1190 domina y ORG-0004 sesga (49.5%); `severity` medio vacía por construcción; subgrafos heredan priors de reglas, no causalidad confirmada. Benign 1.0/1.0 refleja separabilidad por volumen en este sample con split temporal estricto, no leakage. Futuro: GraphSAGE real inductivo, MiniLM fine-tune + SHAP, reportes NL con LLM+RAG.
+
+**Medido (ablaciones M4/M5, no despliegan):** multilabel ATT&CK por evento sobre threat (suspicious+malicious, 6 técnicas, split temporal 80/20): M4-LogReg micro 0.7484/macro 0.2516, M4b-XGB micro 0.7926/macro 0.2557 (`notebooks/m4_multilabel_attack_out.ipynb`, `m4b_xgb_pertecnica_out.ipynb`); M4c 4 exps — E2 tab+grafo micro 0.8571/macro 0.2957 es lo mejor, E3 full 0.7907/0.2779 (`notebooks/m4c_xgb_grafo_out.ipynb`, `models/m4c_exps.json`): el grafo ayuda pero T1041/T1567 y la cola (T1486/T1566 sin soporte) no se separan a nivel evento → la consola sirve mapeo tier→técnicas (oráculo M4, micro 0.9994) declarado como tal. M5 Isolation Forest solo-benigno (`notebooks/m5_anomalia_iforest_out.ipynb`, `models/m5_metrics.json`): ROC 0.174 (invertido 0.83), PR-AUC 0.7243, recall malicious 0.0 con FPR benigno 0.113 — lo malicioso tabular es denso y el IF lo ve normal; queda como red zero-day (lo que IF marca y M1 dice benign → revisión), no como triage. Todo visible en `GET /model/metrics`.
 
 ## 9. Referencias
 

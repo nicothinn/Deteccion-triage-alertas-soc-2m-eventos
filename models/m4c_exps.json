@@ -1,0 +1,46 @@
+{
+  "E0_tab": {
+    "micro_f1": 0.8536,
+    "macro_f1": 0.2643,
+    "hamming": 0.0577,
+    "subset_acc": 0.8269,
+    "skipped": [
+      "T1486",
+      "T1566"
+    ],
+    "secs": 3
+  },
+  "E1_txt+tab": {
+    "micro_f1": 0.7926,
+    "macro_f1": 0.2557,
+    "hamming": 0.089,
+    "subset_acc": 0.7334,
+    "skipped": [
+      "T1486",
+      "T1566"
+    ],
+    "secs": 205
+  },
+  "E2_tab+grafo": {
+    "micro_f1": 0.8571,
+    "macro_f1": 0.2957,
+    "hamming": 0.0562,
+    "subset_acc": 0.831,
+    "skipped": [
+      "T1486",
+      "T1566"
+    ],
+    "secs": 4
+  },
+  "E3_txt+tab+grafo": {
+    "micro_f1": 0.7907,
+    "macro_f1": 0.2779,
+    "hamming": 0.09,
+    "subset_acc": 0.7293,
+    "skipped": [
+      "T1486",
+      "T1566"
+    ],
+    "secs": 169
+  }
+}

@@ -94,6 +94,8 @@ Test temporal futuro (sin shuffle). Métrica principal macro-F1 + PR-AUC por cla
 
 Lectura: M1 recupera suspicious (R 0.96) pero colapsa en malicious; M2/M3 cazan malicious (R ~0.97) vía tokens T1190 / cadenas USER_ACTION, a costa de suspicious (R 0.16/0.19). Figuras en `reports/figures/`: `label_distribution.pdf` (IR 245:1), `temporal_volume.pdf` (malicious termina 07-30 → justifica split temporal), `confusion_m1.pdf` (malicious → benign/suspicious), `architecture.pdf` (pipeline). Variantes en `experiments/m1_tabular/leaderboard.csv` (logreg-F2 0.6148 supera en F1 pero se queda LGBM por latencia).
 
+Ablaciones extra (no despliegan, sí se reportan): **M4/M4b** multilabel ATT&CK por evento (6 técnicas; M4-LogReg micro 0.7484/macro 0.2516, M4b-XGB micro 0.7926/macro 0.2557) y **M4c** (E2 tab+grafo micro 0.8571/macro 0.2957, mejor de 4; el grafo ayuda pero T1041/T1567 siguen sin separarse → van como hint de tier, no como modelo) + **M5** Isolation Forest solo-benigno (ROC 0.174/PR-AUC 0.7243, recall mal 0.0: el ataque tabular es denso y pasa por normal → sirve como red zero-day, no como triage). Ver `notebooks/m4*_out.ipynb`, `notebooks/m5_anomalia_iforest_out.ipynb` y `GET /model/metrics`.
+
 ## 6. Despliegue e Inferencia (Deployment)
 
 ```bash
