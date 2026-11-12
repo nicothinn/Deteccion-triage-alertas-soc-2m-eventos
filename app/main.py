@@ -249,7 +249,7 @@ def model_metrics():
     h = ROOT / "models" / "m3_metrics.json"
     if h.exists():
         out["m3"] = json.loads(h.read_text())
-    for m in ("m4_metrics.json", "m4b_metrics.json", "m4c_exps.json", "m4d_metrics.json", "m5_metrics.json"):
+    for m in ("m4_metrics.json", "m4b_metrics.json", "m4c_exps.json", "m4d_metrics.json", "m5_metrics.json", "m6_metrics.json"):
         f = ROOT / "models" / m
         if f.exists():
             out[m.split("_")[0]] = json.loads(f.read_text())

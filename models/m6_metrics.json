@@ -1,0 +1,99 @@
+{
+  "split": "por tiempo de incidente (min timestamp), cuantil 80",
+  "labels": [
+    "T1190",
+    "T1041",
+    "T1567",
+    "T1204",
+    "T1486",
+    "T1566"
+  ],
+  "m6b": {
+    "model": "m6b-agregado-v1",
+    "micro_f1": 0.9999,
+    "macro_f1": 0.5,
+    "hamming": 0.0001,
+    "subset_acc": 0.9996,
+    "skipped": [],
+    "n_train": 38753,
+    "n_test": 9688,
+    "pr_auc": {
+      "T1190": 1.0,
+      "T1041": 1.0,
+      "T1567": 1.0,
+      "T1204": 0.0003,
+      "T1486": 0.0,
+      "T1566": 0.0
+    },
+    "per_label_support": {
+      "T1190": {
+        "support": 9688,
+        "pr_auc": 1.0
+      },
+      "T1041": {
+        "support": 9688,
+        "pr_auc": 1.0
+      },
+      "T1567": {
+        "support": 9688,
+        "pr_auc": 1.0
+      },
+      "T1204": {
+        "support": 4,
+        "pr_auc": 0.0003
+      },
+      "T1486": {
+        "support": 0,
+        "pr_auc": 0.0
+      },
+      "T1566": {
+        "support": 0,
+        "pr_auc": 0.0
+      }
+    }
+  },
+  "m6a": {
+    "model": "m6a-tram-vote-v1",
+    "micro_f1": 0.9998,
+    "macro_f1": 0.4999,
+    "hamming": 0.0002,
+    "subset_acc": 0.9986,
+    "skipped": [],
+    "n_train": 38753,
+    "n_test": 9688,
+    "pr_auc": {
+      "T1190": 1.0,
+      "T1041": 1.0,
+      "T1567": 1.0,
+      "T1204": 0.2225,
+      "T1486": 0.0,
+      "T1566": 0.0
+    },
+    "per_label_support": {
+      "T1190": {
+        "support": 9688,
+        "pr_auc": 1.0
+      },
+      "T1041": {
+        "support": 9688,
+        "pr_auc": 1.0
+      },
+      "T1567": {
+        "support": 9688,
+        "pr_auc": 1.0
+      },
+      "T1204": {
+        "support": 4,
+        "pr_auc": 0.2225
+      },
+      "T1486": {
+        "support": 0,
+        "pr_auc": 0.0
+      },
+      "T1566": {
+        "support": 0,
+        "pr_auc": 0.0
+      }
+    }
+  }
+}
