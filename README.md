@@ -130,7 +130,7 @@ Endpoints: `GET /health /info /stats /queue?label&limit /incident/{id} /graph/ve
 | No soy técnico | [`docs/glosario_soc_no_tecnico.md`](docs/glosario_soc_no_tecnico.md) |
 | Qué datos son y sus límites | [`docs/datasheet.md`](docs/datasheet.md) (Gebru) + [`reports/eda/resumen_eda.md`](reports/eda/resumen_eda.md) + [`reports/eda/diccionario_datos.csv`](reports/eda/diccionario_datos.csv) |
 | Qué hace cada modelo | `reports/paper.pdf` §5–6 + página Lab en la consola (`/lab`) |
-| Propuesta primera entrega (IEEE + casos + punto 1) | [`reports/propuesta_primera_entrega.pdf`](reports/propuesta_primera_entrega.pdf) · [`docs/casos_primera_entrega.md`](docs/casos_primera_entrega.md) · [`docs/desarrollo_punto1.md`](docs/desarrollo_punto1.md) |
+| Propuesta primera entrega (IEEE + casos + punto 1) | [`reports/primera_entrega/propuesta_primera_entrega.pdf`](reports/primera_entrega/propuesta_primera_entrega.pdf) · [`docs/casos_primera_entrega.md`](docs/casos_primera_entrega.md) · [`docs/desarrollo_punto1.md`](docs/desarrollo_punto1.md) |
 | Consigna del curso | [`docs/guia_proyecto.md`](docs/guia_proyecto.md) (`contexto/course_project_guide.pdf`) |
 | Literatura del primer entregable | [`docs/referencias_primer_entregable.md`](docs/referencias_primer_entregable.md) |
 | Paper final | [`reports/paper.pdf`](reports/paper.pdf) ([`.tex`](reports/paper.tex)) |

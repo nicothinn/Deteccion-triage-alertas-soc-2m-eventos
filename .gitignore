@@ -22,3 +22,6 @@ soc-ui/dist/
 
 # runtime
 data/feedback.csv
+
+# agente: planes/specs locales (no es contenido del proyecto)
+docs/superpowers/

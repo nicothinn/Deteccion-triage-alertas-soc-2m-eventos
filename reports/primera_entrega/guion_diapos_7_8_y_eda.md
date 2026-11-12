@@ -1,6 +1,6 @@
 # Guion diapos 7-8 + EDA en vivo — Primera entrega
 
-> Pptx: `reports/Triage_Alertas_SOC.pptx` (9 slides). Notebook: `notebooks/eda_precinct6.ipynb` (25 celdas, 12 secciones). EDA reproducible: `reports/eda/resumen_eda.md`.
+> Pptx: `Triage_Alertas_SOC.pptx` (9 slides). Notebook: `../../notebooks/eda_precinct6.ipynb` (25 celdas, 12 secciones). EDA reproducible: `../eda/resumen_eda.md`.
 
 ## 1. Qué contiene el pptx (para ubicarte)
 
