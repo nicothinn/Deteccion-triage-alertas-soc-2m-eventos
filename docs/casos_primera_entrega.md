@@ -44,7 +44,7 @@ Los SOC se ahogan en alertas: nuestra captura tiene **2,011,674 eventos en 6 dí
 
 ## 4. Dataset + visualización
 
-`witfoo/precinct6-cybersecurity` v2.1.0 (Apache-2.0): 2,011,674 live (94.31/5.31/0.38%), 47,585 nodos, 1,740,438 aristas, 51,371 incidentes + reportes, 261 reglas. Figuras: `label_distribution.pdf` (IR 245:1), `temporal_volume.pdf` (malicious termina 07-30 → split temporal), `confusion_m1.pdf`, EDA `notebooks/eda_precinct6.ipynb` + `reports/eda/`.
+`witfoo/precinct6-cybersecurity` v2.1.0 (Apache-2.0): 2,011,674 live (94.31/5.31/0.38%), 47,585 nodos, 1,740,438 aristas, 51,371 incidentes + reportes, 261 reglas. Figuras: `label_distribution.pdf` (IR 245:1), `temporal_volume.pdf` (malicious termina 07-30 → split temporal), `confusion_m1.pdf`, EDA `notebooks/00_eda_precinct6.ipynb` + `reports/eda/`.
 
 ## Referencias (links verificados hoy)
 

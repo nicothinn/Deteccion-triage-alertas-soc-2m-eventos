@@ -1,6 +1,6 @@
 # Guion diapos 7-8 + EDA en vivo — Primera entrega
 
-> Pptx: `Triage_Alertas_SOC.pptx` (9 slides). Notebook: `../../notebooks/eda_precinct6.ipynb` (25 celdas, 12 secciones). EDA reproducible: `../eda/resumen_eda.md`.
+> Pptx: `Triage_Alertas_SOC.pptx` (9 slides). Notebook: `../../notebooks/00_eda_precinct6.ipynb` (25 celdas, 12 secciones). EDA reproducible: `../eda/resumen_eda.md`.
 
 ## 1. Qué contiene el pptx (para ubicarte)
 
@@ -112,6 +112,6 @@ Cells 8-15 (orgs, productos, red, action/severity): tené a mano 2 datos por si 
 
 - [ ] `data/signals/signals.parquet` presente (117 MB) o el notebook no corre.
 - [ ] Kernel `.venv` Python 3.10.
-- [ ] Pre-ejecutar `eda_precinct6.ipynb` por si el live falla — muestra ese.
+- [ ] Pre-ejecutar `00_eda_precinct6.ipynb` por si el live falla — muestra ese.
 - [ ] Tener abierto `reports/eda/resumen_eda.md` como respaldo de números.
 - [ ] Tiempo: diapo 7 (1 min) + diapo 8 (2 min) + notebook (5 min) = 8 min, deja 7 para resto.

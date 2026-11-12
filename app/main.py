@@ -20,7 +20,7 @@ MODEL = {"pipe": None, "meta": None, "name": "m1-stub",
          "m3": None, "m3name": "m3-stub"}
 
 # ponytail: tecnicas ATT&CK derivadas del tier (oraculo M4: micro-F1 0.9994 en test temporal;
-# en live son priors de regla, no atribucion por evento — ver notebooks/m4b_xgb_pertecnica.ipynb).
+# en live son priors de regla, no atribucion por evento — ver notebooks/05_m4b_multilabel_xgb.ipynb).
 # M4b-XGB aprendido NO se despliega (T1041/T1567 P 0.08 mentirian al analista).
 TIER_TECH = {
     "malicious": (["T1190", "T1041", "T1567"], ["TA0001", "TA0010"]),

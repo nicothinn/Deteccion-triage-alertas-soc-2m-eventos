@@ -122,7 +122,7 @@ uv run explorar.py
 
 ## 8. SOTA multi-label ATT&CK (M4/M4b, oct-2026)
 
-Medido en casa: M4-LogReg micro 0.75/macro 0.25, M4b-XGB micro 0.79/macro 0.26 (`notebooks/m4_multilabel_attack.ipynb`, `m4b_xgb_pertecnica.ipynb`). T1190 trivial; T1041/T1567 no separables a nivel evento; cola sin soporte. Lo que la literatura hace para esto:
+Medido en casa: M4-LogReg micro 0.75/macro 0.25, M4b-XGB micro 0.79/macro 0.26 (`notebooks/04_m4a_multilabel_logreg.ipynb`, `05_m4b_multilabel_xgb.ipynb`). T1190 trivial; T1041/T1567 no separables a nivel evento; cola sin soporte. Lo que la literatura hace para esto:
 
 - **TRAM (MITRE CTID)** — plataforma open-source + dataset 50 técnicas + notebooks single/multi-label SciBERT (Colab): https://github.com/center-for-threat-informed-defense/tram/ — notebooks: https://github.com/center-for-threat-informed-defense/tram/tree/main/user_notebooks — plantilla Fase 3 (fine-tune SciBERT multi-label con nuestros 51k `attack_reports`).
 - **Two-stage LLM (arXiv 2411.18755)** — LLM resume + SciBERT rebalanceado/aumentado, +5-9pp macro-F1 vs TRAM: https://arxiv.org/abs/2411.18755 — local: `papers/TwoStage-LLM-2411.18755.pdf` — receta contra la cola.
@@ -132,4 +132,4 @@ Medido en casa: M4-LogReg micro 0.75/macro 0.25, M4b-XGB micro 0.79/macro 0.26 (
 - **TTPXHunter (ACM DTRAP 2024)** — aumento LLM de frases para TTPs minoritarios, F1 92-97%: https://dlnext.acm.org/doi/10.1145/3696427 — receta cola T1204/T1486/T1566 con `incident_signals`.
 - **ALERT (NIST 2024)** — LLM + active learning, igual performance con 77% menos anotación — si algún día anotamos a mano.
 - **AnnoCTR (LREC 2024)** — 700 reportes / 165 técnicas anotadas por experto: https://aclanthology.org/2024.lrec-main.103.pdf — benchmark cola larga.
-- Ver experimentos M4/M4b en `notebooks/m4_multilabel_attack.ipynb` y `notebooks/m4b_xgb_pertecnica.ipynb`.
+- Ver experimentos M4/M4b en `notebooks/04_m4a_multilabel_logreg.ipynb` y `notebooks/05_m4b_multilabel_xgb.ipynb`.
