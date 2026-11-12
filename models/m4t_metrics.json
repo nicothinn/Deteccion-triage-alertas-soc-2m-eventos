@@ -1,0 +1,128 @@
+{
+  "model": "m4t-thresholds-v1",
+  "labels": [
+    "T1190",
+    "T1041",
+    "T1567",
+    "T1204",
+    "T1486",
+    "T1566"
+  ],
+  "split": "train<=q60 / val q60-q80 / test>q80 por timestamp",
+  "beta": 2.0,
+  "skipped": [
+    "T1486",
+    "T1566"
+  ],
+  "n_train": 68713,
+  "n_val": 22904,
+  "n_test": 22904,
+  "tuned": {
+    "micro_f1": 0.7041,
+    "macro_f1": 0.3539,
+    "hamming": 0.1847,
+    "subset_acc": 0.4327
+  },
+  "fixed_05": {
+    "micro_f1": 0.719,
+    "macro_f1": 0.3536,
+    "hamming": 0.1679,
+    "subset_acc": 0.49
+  },
+  "thresholds": {
+    "T1190": {
+      "threshold": 0.05,
+      "f2_val": 1.0,
+      "pos_train": 68711,
+      "pos_val": 22904
+    },
+    "T1041": {
+      "threshold": 0.15,
+      "f2_val": 0.651,
+      "pos_train": 3547,
+      "pos_val": 462
+    },
+    "T1567": {
+      "threshold": 0.1,
+      "f2_val": 0.6502,
+      "pos_train": 3545,
+      "pos_val": 462
+    },
+    "T1204": {
+      "threshold": 0.5,
+      "f2_val": 0.0,
+      "pos_train": 10,
+      "pos_val": 0
+    }
+  },
+  "per_label": {
+    "tuned": {
+      "T1190": {
+        "threshold": 0.05,
+        "precision": 0.9995,
+        "recall": 1.0,
+        "f1": 0.9997,
+        "pr_auc": 0.9995,
+        "support": 22892
+      },
+      "T1041": {
+        "threshold": 0.15,
+        "precision": 0.2267,
+        "recall": 0.9679,
+        "f1": 0.3674,
+        "pr_auc": 0.284,
+        "support": 3733
+      },
+      "T1567": {
+        "threshold": 0.1,
+        "precision": 0.2229,
+        "recall": 0.9925,
+        "f1": 0.3641,
+        "pr_auc": 0.2688,
+        "support": 3721
+      },
+      "T1204": {
+        "threshold": 0.5,
+        "precision": 0.2439,
+        "recall": 1.0,
+        "f1": 0.3922,
+        "pr_auc": 0.3098,
+        "support": 10
+      }
+    },
+    "fixed_05": {
+      "T1190": {
+        "threshold": 0.05,
+        "precision": 0.9995,
+        "recall": 1.0,
+        "f1": 0.9997,
+        "pr_auc": 0.9995,
+        "support": 22892
+      },
+      "T1041": {
+        "threshold": 0.15,
+        "precision": 0.2317,
+        "recall": 0.8843,
+        "f1": 0.3672,
+        "pr_auc": 0.284,
+        "support": 3733
+      },
+      "T1567": {
+        "threshold": 0.1,
+        "precision": 0.2276,
+        "recall": 0.8901,
+        "f1": 0.3625,
+        "pr_auc": 0.2688,
+        "support": 3721
+      },
+      "T1204": {
+        "threshold": 0.5,
+        "precision": 0.2439,
+        "recall": 1.0,
+        "f1": 0.3922,
+        "pr_auc": 0.3098,
+        "support": 10
+      }
+    }
+  }
+}
