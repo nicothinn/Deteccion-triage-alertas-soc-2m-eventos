@@ -20,6 +20,6 @@
     "malicious",
     "suspicious"
   ],
-  "n_train": 112848,
-  "n_test": 28212
+  "n_train": 137508,
+  "n_test": 574132
 }

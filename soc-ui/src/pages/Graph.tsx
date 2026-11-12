@@ -1,4 +1,4 @@
-import { Background, ReactFlow } from "@xyflow/react";
+import { Background, BackgroundVariant, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -175,7 +175,7 @@ export default function Graph() {
           </p>
           <div className="mt-2 h-[520px] rounded-md border border-[#0f3d1e] bg-black">
             <ReactFlow nodes={nodes} edges={edges} fitView colorMode="dark" style={{ background: "#000" }} proOptions={{ hideAttribution: true }}>
-              <Background variant="dots" gap={24} size={1.5} color="#0f3d1e" bgColor="#000" />
+              <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="#0f3d1e" bgColor="#000" />
             </ReactFlow>
           </div>
           <p className="mt-1 text-xs text-mut">Rojo = suspicion_score &gt; 0 · aristas solo hacia ★ (1 salto real). Verde = tráfico normal.</p>

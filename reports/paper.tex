@@ -21,7 +21,7 @@
 \begin{abstract}
 Security Operations Centers drown in alerts: our capture holds 2,011,674 events in six days from 4 organizations, 19 products and 12 vendors, with only 0.38\% malicious (imbalance ratio 245:1).
 We frame alert triage as supervised three-class classification (benign / suspicious / malicious) with temporal generalization and deploy it as a SOC console.
-M1, a cost-sensitive LightGBM over tabular fields, reaches macro-F1 0.599 (train 112,848 / test 28,212, temporal 80/20 split) but malicious recall stays near zero (0.0045). M2 (TF-IDF 5k + XGBoost over log text) reaches macro-F1 0.708 with malicious recall 0.970 and PR-AUC$_{mal}$ 0.826; M3 (neighborhood aggregation $\pm$5\,min + XGBoost, SAGE-mean 1-hop) reaches macro-F1 0.719 with malicious recall 0.962 and PR-AUC$_{mal}$ 0.815. Both use the same temporal protocol (train 24,000 / test 6,000).
+M1, a cost-sensitive LightGBM over tabular fields, reaches macro-F1 0.628 (train 137,508 / test 574,132 in fixed UTC windows, zero shared incidents) but malicious recall stays near zero (0.011). M2 (TF-IDF 5k + XGBoost over log text) reaches macro-F1 0.623 with malicious recall 0.002 and PR-AUC$_{mal}$ 0.218 --- an earlier sample-then-split protocol showed recall 0.97, which we retract as temporal leakage (memorized campaign, Sec.~\ref{sec:eval}). M3 (neighborhood aggregation $[t{-}300s,t)$ + XGBoost) reports macro-F1 0.719 with malicious recall 0.962, measured with a non-causal $\pm$5\,min window: an upper bound pending re-measurement, not a serve number.
 A FastAPI backend (\texttt{/score}, \texttt{/score\_batch}, \texttt{/queue}, \texttt{/incident}) serves all three behind a React triage console (queue, incident chain, MITRE coverage) for the 20-minute demo.
 \end{abstract}
 
@@ -101,7 +101,7 @@ Each signal carries 38 columns: timestamps (\texttt{timestamp}, \texttt{event\_t
 \section{Machine-learning problem}
 \label{sec:mlproblem}
 
-\textbf{Type:} supervised multi-class classification with extreme imbalance, distribution shift over time, and a human-in-the-loop decision. \textbf{Task:} learn $f: x \mapsto (y, p)$ where $x$ is one event (tabular fields + raw message + $\pm$5\,min neighborhood subgraph), $y \in \{\text{benign, suspicious, malicious}\}$, $p$ calibrated probabilities; the console maps $(y,p,\text{action})$ to \texttt{escalar} iff $y{=}$malicious or ($y{=}$suspicious $\wedge$ action$=$block). \textbf{Protocol:} temporal split (train past / test future, cutoff = 80\% timestamp quantile) to penalize memorizing campaign bursts; metrics macro-F1 + per-class PR-AUC + malicious recall at fixed FPR. Accuracy is reported only to show it is vacuous ($\approx$94\% by always-benign).
+\textbf{Type:} supervised multi-class classification with extreme imbalance, distribution shift over time, and a human-in-the-loop decision. \textbf{Task:} learn $f: x \mapsto (y, p)$ where $x$ is one event (tabular fields + raw message + $\pm$5\,min neighborhood subgraph), $y \in \{\text{benign, suspicious, malicious}\}$, $p$ calibrated probabilities; the console maps $(y,p,\text{action})$ to \texttt{escalar} iff $y{=}$malicious or ($y{=}$suspicious $\wedge$ action$=$block). \textbf{Protocol:} fixed UTC windows (train past / test future, zero shared incidents: 1515 train / 69 test) to penalize memorizing campaign bursts; metrics macro-F1 + per-class PR-AUC + malicious recall at fixed FPR. An earlier sample-then-split quantile protocol leaked campaigns across the split and is retracted (Sec.~\ref{sec:eval}). Accuracy is reported only to show it is vacuous ($\approx$94\% by always-benign).
 
 %----------------------------------------------------------------
 \section{Preprocessing}
@@ -146,10 +146,10 @@ Inference & $<$50\,ms & $\sim$100\,ms b-32 & $\sim$s / subgraph \\
 \section{Evaluation}
 \label{sec:eval}
 
-\textbf{M1 (measured).} Temporal test $n{=}28{,}212$: \textbf{macro-F1 0.599}; suspicious is recovered, benign dominates, and \textbf{malicious recall $\approx$ 0} --- the model predicts the majority under 245:1 odds despite balanced weights. This negative result is the paper's hinge: tabular fields alone cannot see payload semantics (M2) or multi-step structure (M3).
+\textbf{M1 (measured).} Fixed-window test $n{=}574{,}132$ with real prevalence: \textbf{macro-F1 0.628}; suspicious is recovered, benign dominates, and \textbf{malicious recall $\approx$ 0.01} --- the model predicts the majority under 245:1 odds despite balanced weights. This negative result is the paper's hinge: tabular fields alone cannot see payload semantics (M2) or multi-step structure (M3).
 
 \begin{table}[htbp]
-\caption{M1 test results (temporal split, $n{=}28{,}212$).}
+\caption{M1 test results (fixed UTC windows, $n{=}574{,}132$).}
 \label{tab:m1}
 \centering
 \begin{tabular}{@{}lcccc@{}}
@@ -157,10 +157,10 @@ Inference & $<$50\,ms & $\sim$100\,ms b-32 & $\sim$s / subgraph \\
 Tier & Prec. & Rec. & F1 & PR-AUC \\
 \midrule
 benign & 1.0000 & 1.0000 & 1.0000 & 1.0000 \\
-suspicious & 0.6696 & 0.9602 & 0.7890 & 0.6758 \\
-malicious & 0.0507 & 0.0045 & 0.0082 & 0.3023 \\
+suspicious & 0.7647 & 0.9885 & 0.8623 & 0.7645 \\
+malicious & 0.2275 & 0.0107 & 0.0204 & 0.2333 \\
 \midrule
-macro avg & --- & --- & \textbf{0.5991} & --- \\
+macro avg & --- & --- & \textbf{0.6276} & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -172,7 +172,7 @@ macro avg & --- & --- & \textbf{0.5991} & --- \\
 \label{fig:conf}
 \end{figure}
 
-\textbf{M2/M3 (measured).} Same temporal cutoff and macro-F1. M2 (TF-IDF 5k word+char, XGBoost 300x6, train 24,000 / test 6,000): \textbf{macro-F1 0.7084}, malicious P/R/F1 0.7905/0.9698/0.8711, PR-AUC$_{mal}$ 0.8261, recall@1\%FPR 0.0813; suspicious F1 drops to 0.2543. M3 (neighborhood $\pm$5\,min by host/credential, 8 graph feats + XGBoost 300x6, same split): \textbf{macro-F1 0.7186}, malicious 0.7946/0.9620/0.8703, PR-AUC$_{mal}$ 0.8154, recall@1\%FPR 0.0376. M2 lifts malicious recall via payload tokens (T1190 exploit strings); M3 matches it via USER\_ACTION chains. The trade-off is suspicious recall (M1 0.96 vs M2 0.16 / M3 0.19): text and graph specialize in malicious at the cost of the middle tier.
+\textbf{M2/M3 (measured, with a retraction).} The earlier sample-then-split protocol showed M2 (TF-IDF 5k + XGBoost) at macro-F1 0.7084 with malicious recall 0.97. Under fixed UTC windows with zero shared incidents (train 30,000 / test 574,132): \textbf{macro-F1 0.6232}, malicious 0.2414/0.002/0.0039, PR-AUC$_{mal}$ 0.218, recall@1\%FPR 0.4344. The 0.97 was campaign memorization; retracted. M2 ranks but does not fire at threshold 0.5. M3's \textbf{0.719} (malicious 0.7946/0.9620/0.8703) was measured with a non-causal $\pm$5\,min window and stays as an upper bound pending causal re-measurement (aborted on cost).
 
 \begin{figure}[htbp]
 \centering
@@ -189,10 +189,10 @@ macro avg & --- & --- & \textbf{0.5991} & --- \\
 
 %----------------------------------------------------------------
 \section{Limitations}
-Labels are Precinct's automated correlation, not analyst truth; T1190 dominance and ORG-0004 skew (49.5\% of rows) limit generality; \texttt{severity} is half-empty by construction; incident subgraphs inherit rule priors, not confirmed causality. Benign precision/recall $=$ 1.0 reflects that benign is trivially separable by volume in this sample, not leakage: the temporal split is strict and all three models share it. Measured ablations (not deployed): per-event ATT\&CK multilabel over 6 techniques reaches micro-F1 0.79/macro-F1 0.26 (M4b-XGB; M4c tab+graph best micro 0.86/macro 0.30) --- T1041/T1567 never separate at event level, so the console serves tier$\rightarrow$technique hints instead; Isolation Forest trained on benign only scores ROC-AUC 0.17 (0.83 inverted) with zero malicious recall, kept as a zero-day net, not triage.
+Labels are Precinct's automated correlation, not analyst truth; T1190 dominance and ORG-0004 skew (49.5\% of rows) limit generality; \texttt{severity} is half-empty by construction; incident subgraphs inherit rule priors, not confirmed causality. Benign precision/recall $=$ 1.0 reflects that benign is trivially separable by volume in this sample, not leakage: the fixed-window split is strict with zero shared incidents. Our leakage audit: (i) the retracted quantile split shared campaign bursts and inflated M2/M3 malicious recall to $\sim$0.97; (ii) M3's 0.719 used a non-causal $\pm$5\,min window (serve is causal). Honest numbers: M1 0.6276 / M2 0.6232. The data supports prioritizing observed campaigns, not zero-day generalization. Measured ablations (not deployed): per-event ATT\&CK multilabel reaches micro-F1 0.79/macro 0.26 (M4b; M4c tab+graph best 0.86/0.30) --- T1041/T1567 never separate at event level, so the console serves tier$\rightarrow$technique hints; M4d per-tactic XGB reaches micro 0.8772/macro 0.4264 with the same wall on TA0009/TA0010; Isolation Forest scores ROC-AUC 0.17 with zero malicious recall, kept as a zero-day net.
 
 \section{Conclusion}
-Tabular triage is a fast, honest baseline (F1-macro 0.599) that fails exactly where SOC pain lives: rare, textual, multi-step attacks. M2 (0.708) and M3 (0.719) fix malicious recall (0.97/0.96 vs 0.00) at the cost of suspicious recall. The deployed cascade (M1 rank $\rightarrow$ M2 text evidence $\rightarrow$ M3 provenance chain) turns that failure into an architecture, and the console puts all three answers --- score, words, graph --- on one analyst screen.
+Tabular triage is a fast, honest baseline (F1-macro 0.628) that fails exactly where SOC pain lives: rare, textual, multi-step attacks. Under an honest fixed-window protocol M2 (0.623) does not rescue malicious recall at threshold (0.002 vs the retracted 0.97); it only ranks (0.43 recall @1\%FPR). M3's 0.719 remains an upper bound pending causal re-measurement. The deployed cascade (M1 rank $\rightarrow$ M2 text evidence $\rightarrow$ M3 provenance chain) still puts score, words and graph on one analyst screen --- for prioritizing observed campaigns, not for catching unseen ones.
 
 %----------------------------------------------------------------
 \begin{thebibliography}{9}

@@ -163,7 +163,7 @@ export function ConfusionM1() {
       series: [{
         type: "heatmap",
         data,
-        label: { show: true, color: "#e8edf2", fontSize: 12, formatter: (p) => Number(p.value[2]).toFixed(2) },
+        label: { show: true, color: "#e8edf2", fontSize: 12, formatter: (p) => Array.isArray(p.value) ? Number(p.value[2]).toFixed(2) : "" },
         emphasis: { itemStyle: { shadowBlur: 8 } },
       }],
     };

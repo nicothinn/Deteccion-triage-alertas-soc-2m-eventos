@@ -1,10 +1,13 @@
 """M1 baseline: tabular LightGBM cost-sensitive sobre signals (sample estratificado).
 Corre: uv run python experiments/m1_tabular/train.py --n 200000
 Guarda: models/m1.pkl (pipeline + modelo + meta). Métrica: F1-macro + PR-AUC (no accuracy, IR 245:1).
+Protocolo honesto: ventanas UTC fijas (train pasado / test futuro, 0 incidentes compartidos),
+test con prevalencia real. El sample-then-split con cuantil se abandonó por leakage temporal.
 """
 # ponytail: un script, sample estratificado, split temporal simple
 import argparse, pickle, json
 from pathlib import Path
+import sys
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
@@ -13,6 +16,9 @@ from sklearn.metrics import f1_score, average_precision_score, classification_re
 from lightgbm import LGBMClassifier
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+from src.temporal_split import WINDOW_LABELS, population_summary, temporal_windows
+
 CATS = ["message_type", "stream_name", "product_name", "vendor_name", "pipeline", "org_id", "action", "severity", "protocol"]
 NUMS = ["hour", "msg_len", "lag_h"]
 
@@ -27,17 +33,13 @@ def features(df):
     return df
 
 def main(n):
-    df = pd.read_parquet(ROOT / "data" / "signals" / "signals.parquet")
-    df = features(df)
-    # sample estratificado por label para que entre malicious
-    df = df.groupby("label_binary", group_keys=False).apply(
-        lambda g: g.sample(min(len(g), max(n // 3, 2000)), random_state=42)
-    )
-    X = df[CATS + NUMS]
-    y = df["label_binary"]
-    # split temporal: train pasado, test futuro (drift SOC)
-    cutoff = df["timestamp"].quantile(0.8)
-    tr, te = df["timestamp"] <= cutoff, df["timestamp"] > cutoff
+    df = features(pd.read_parquet(ROOT / "data" / "signals" / "signals.parquet"))
+    train_pop, test, drift = temporal_windows(df)
+    # Balancea solo entrenamiento; test conserva prevalencia y soporte reales del bloque.
+    train = pd.concat([
+        group.sample(min(len(group), max(n // 3, 2000)), random_state=42)
+        for _, group in train_pop.groupby("label_binary")
+    ], ignore_index=True)
     pre = ColumnTransformer([
         ("cat", OneHotEncoder(handle_unknown="ignore", max_categories=30), CATS),
         ("num", "passthrough", NUMS),
@@ -45,18 +47,19 @@ def main(n):
     clf = LGBMClassifier(n_estimators=200, learning_rate=0.08, num_leaves=63,
                          class_weight="balanced", n_jobs=-1, verbose=-1)
     pipe = Pipeline([("pre", pre), ("clf", clf)])
-    pipe.fit(X[tr], y[tr])
-    p = pipe.predict(X[te])
-    proba = pipe.predict_proba(X[te])
-    rep = classification_report(y[te], p, output_dict=True, zero_division=0)
-    f1m = f1_score(y[te], p, average="macro")
-    print(classification_report(y[te], p, zero_division=0))
+    pipe.fit(train[CATS + NUMS], train["label_binary"])
+    y_test = test["label_binary"]
+    p = pipe.predict(test[CATS + NUMS])
+    proba = pipe.predict_proba(test[CATS + NUMS])
+    rep = classification_report(y_test, p, output_dict=True, zero_division=0)
+    f1m = f1_score(y_test, p, average="macro")
+    print(classification_report(y_test, p, zero_division=0))
     print("F1-macro:", f1m)
     # ponytail: PR-AUC por clase + json para /model/metrics y el paper
     prauc = {}
     for i, c in enumerate(pipe.classes_):
         try:
-            prauc[str(c)] = round(float(average_precision_score((y[te] == c).astype(int), proba[:, i])), 4)
+            prauc[str(c)] = round(float(average_precision_score((y_test == c).astype(int), proba[:, i])), 4)
         except Exception:
             prauc[str(c)] = 0.0
     per_class = {c: {"precision": round(rep[c]["precision"], 4), "recall": round(rep[c]["recall"], 4),
@@ -64,12 +67,17 @@ def main(n):
                  "pr_auc": prauc[c]}
                  for c in pipe.classes_}
     metrics = {"model": "m1-tabar-v1", "f1_macro": round(float(f1m), 4),
-               "per_class": per_class, "n_train": int(tr.sum()), "n_test": int(te.sum()),
+               "per_class": per_class, "n_train": len(train), "n_test": len(test),
+               "evaluation": {"windows": WINDOW_LABELS,
+                              "test": population_summary(test),
+                              "drift": population_summary(drift)},
                "config": {"n_estimators": 200, "learning_rate": 0.08, "num_leaves": 63,
-                          "class_weight": "balanced", "split": "temporal 80/20", "sample_n": n}}
+                          "class_weight": "balanced", "split": "fixed UTC temporal window",
+                          "incident_split": "0 incidentes compartidos train/test (1515/69)",
+                          "sample_n": n}}
     (ROOT / "models" / "m1_metrics.json").write_text(json.dumps(metrics, indent=2))
-    meta = {"cats": CATS, "nums": NUMS, "classes": sorted(y.unique().tolist()),
-            "n_train": int(tr.sum()), "n_test": int(te.sum())}
+    meta = {"cats": CATS, "nums": NUMS, "classes": sorted(train["label_binary"].unique().tolist()),
+            "n_train": len(train), "n_test": len(test)}
     with open(ROOT / "models" / "m1.pkl", "wb") as f:
         pickle.dump({"pipe": pipe, "meta": meta}, f)
     (ROOT / "models" / "m1_meta.json").write_text(json.dumps(meta, indent=2))

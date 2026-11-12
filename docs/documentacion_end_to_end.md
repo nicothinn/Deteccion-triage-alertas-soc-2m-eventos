@@ -73,25 +73,27 @@ Timestamps (`timestamp` ingest Precinct, `event_time` device clock con NaNs), id
 
 Variantes comparadas en `experiments/m1_tabular/leaderboard.csv` (MLflow `experiments/mlruns`): logreg-F2 F1 0.6148 > lgbm — M1 se queda por latencia/simplicidad, documentado en `notebooks/m1_variants_mlflow.ipynb`.
 
-## 6. Evaluación (medido, mismo protocolo)
+## 6. Evaluación (protocolo honesto: ventanas UTC fijas, 0 incidentes compartidos)
 
-### M1 — F1-macro 0.5991 (train 112,848 / test 28,212)
+Los números viejos con sample-then-split por cuantil (M1 0.5991, M2 0.7084 con R mal 0.97) tenían fuga temporal y se retiran; el detalle está en `notebooks/m1_variants_mlflow.ipynb` §6.5.
+
+### M1 — F1-macro 0.6276 (train 137,508 / test 574,132, test con prevalencia real)
 
 | Tier | Prec | Rec | F1 | PR-AUC | sup |
 |---|---|---|---|---|---|
-| benign | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 18506 |
-| suspicious | 0.6696 | 0.9602 | 0.7890 | 0.6758 | 6576 |
-| malicious | 0.0507 | 0.0045 | 0.0082 | 0.3023 | 3130 |
+| benign | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 559030 |
+| suspicious | 0.7647 | 0.9885 | 0.8623 | 0.7645 | 11550 |
+| malicious | 0.2275 | 0.0107 | 0.0204 | 0.2333 | 3552 |
 
-Suspicious se recupera, benign domina, malicious colapsa. Matriz en `reports/figures/confusion_m1.pdf`. Este negativo es el hinge del paper: lo tabular no ve semántica (M2) ni multi-paso (M3).
+Suspicious se recupera, benign domina, malicious colapsa. Este negativo es el hinge: lo tabular no ve semántica ni multi-paso.
 
-### M2 — F1-macro 0.7084 (train 24,000 / test 6,000, TF-IDF 5k + XGBoost)
+### M2 — F1-macro 0.6232 (train 30,000 / test 574,132, TF-IDF 5k + XGBoost)
 
-benign 1.0/1.0/1.0 (3012, PR 1.0) · malicious 0.7905/0.9698/0.8711 (2288, PR 0.8261) · suspicious 0.6188/0.16/0.2543 (700, PR 0.4256) · recall malicious @1%FPR 0.0813. Levanta malicious vía tokens T1190; sacrifica suspicious.
+benign 1.0/1.0/1.0 (559030, PR 1.0) · malicious 0.2414/0.002/0.0039 (3552, PR 0.218) · suspicious 0.7647/0.9972/0.8656 (11550, PR 0.7634) · recall malicious @1%FPR 0.4344. Con umbral 0.5 no dispara malicioso en futuro no visto; el ranking (0.43 @1%FPR) es lo único rescatable.
 
-### M3 — F1-macro 0.7186 (mismo split, 8 feats grafo + XGBoost)
+### M3 — F1-macro 0.7186\* (8 feats grafo + XGBoost, pendiente de re-medición)
 
-benign 1.0/1.0/1.0 (3012, PR 1.0) · malicious 0.7946/0.9620/0.8703 (2288, PR 0.8154) · suspicious 0.6009/0.1871/0.2854 (700, PR 0.3554) · recall @1%FPR 0.0376. Iguala a M2 vía cadenas USER_ACTION. Trade-off idéntico: especialista malicious, pierde el tier medio.
+benign 1.0/1.0/1.0 (3012) · malicious 0.7946/0.9620/0.8703 (2288, PR 0.8154) · suspicious 0.6009/0.1871/0.2854 (700, PR 0.3554) · recall @1%FPR 0.0376. \*Medido con vecindario ±5min no causal y split viejo: cota alta, no número de serve (el serve ya es causal `[t-300s,t)`). Re-medición abortada por costo; queda como trabajo explícito.
 
 Figuras: `reports/figures/{label_distribution,temporal_volume,confusion_m1,architecture}.pdf`, compiladas en `reports/paper.pdf`.
 
@@ -103,7 +105,7 @@ Figuras: `reports/figures/{label_distribution,temporal_volume,confusion_m1,archi
 
 Labels = correlación Precinct, no verdad analista; T1190 domina y ORG-0004 sesga (49.5%); `severity` medio vacía por construcción; subgrafos heredan priors de reglas, no causalidad confirmada. Benign 1.0/1.0 refleja separabilidad por volumen en este sample con split temporal estricto, no leakage. Futuro: GraphSAGE real inductivo, MiniLM fine-tune + SHAP, reportes NL con LLM+RAG.
 
-**Medido (ablaciones M4/M5, no despliegan):** multilabel ATT&CK por evento sobre threat (suspicious+malicious, 6 técnicas, split temporal 80/20): M4-LogReg micro 0.7484/macro 0.2516, M4b-XGB micro 0.7926/macro 0.2557 (`notebooks/m4_multilabel_attack_out.ipynb`, `m4b_xgb_pertecnica_out.ipynb`); M4c 4 exps — E2 tab+grafo micro 0.8571/macro 0.2957 es lo mejor, E3 full 0.7907/0.2779 (`notebooks/m4c_xgb_grafo_out.ipynb`, `models/m4c_exps.json`): el grafo ayuda pero T1041/T1567 y la cola (T1486/T1566 sin soporte) no se separan a nivel evento → la consola sirve mapeo tier→técnicas (oráculo M4, micro 0.9994) declarado como tal. M5 Isolation Forest solo-benigno (`notebooks/m5_anomalia_iforest_out.ipynb`, `models/m5_metrics.json`): ROC 0.174 (invertido 0.83), PR-AUC 0.7243, recall malicious 0.0 con FPR benigno 0.113 — lo malicioso tabular es denso y el IF lo ve normal; queda como red zero-day (lo que IF marca y M1 dice benign → revisión), no como triage. Todo visible en `GET /model/metrics`.
+**Medido (ablaciones M4/M5, no despliegan):** multilabel ATT&CK por evento sobre threat (suspicious+malicious, 6 técnicas, split temporal 80/20): M4-LogReg micro 0.7484/macro 0.2516, M4b-XGB micro 0.7926/macro 0.2557 (`notebooks/m4_multilabel_attack.ipynb`, `m4b_xgb_pertecnica.ipynb`); M4c 4 exps — E2 tab+grafo micro 0.8571/macro 0.2957 es lo mejor, E3 full 0.7907/0.2779 (`notebooks/m4c_xgb_grafo.ipynb`, `models/m4c_exps.json`): el grafo ayuda pero T1041/T1567 y la cola (T1486/T1566 sin soporte) no se separan a nivel evento → la consola sirve mapeo tier→técnicas (oráculo M4, micro 0.9994) declarado como tal. M5 Isolation Forest solo-benigno (`notebooks/m5_anomalia_iforest.ipynb`, `models/m5_metrics.json`): ROC 0.174 (invertido 0.83), PR-AUC 0.7243, recall malicious 0.0 con FPR benigno 0.113 — lo malicioso tabular es denso y el IF lo ve normal; queda como red zero-day (lo que IF marca y M1 dice benign → revisión), no como triage. Todo visible en `GET /model/metrics`.
 
 ## 9. Referencias
 

@@ -1,7 +1,8 @@
 """M2 texto+tabular: TF-IDF 5k sobre message_sanitized + P1-P3 tabular -> XGBoost.
 Corre: uv run python experiments/m2_texto/train.py --n 30000
 Guarda: models/m2.pkl (vectorizer + tabular + clf) y models/m2_metrics.json.
-Mismo protocolo que M1 (split temporal 80/20) o no vale comparar.
+Protocolo honesto: ventanas UTC fijas (train pasado / test futuro, 0 incidentes compartidos),
+test con prevalencia real. El sample-then-split con cuantil se abandonó por leakage temporal.
 MiniLM despues: --encoder miniml (requiere sentence-transformers).
 """
 # ponytail: TF-IDF primero (gana con poco dato), mismo split y metricas que M1
@@ -9,6 +10,7 @@ import argparse
 import json
 import pickle
 from pathlib import Path
+import sys
 
 import pandas as pd
 from scipy.sparse import hstack
@@ -19,6 +21,9 @@ from sklearn.preprocessing import OneHotEncoder
 from xgboost import XGBClassifier
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+from src.temporal_split import WINDOW_LABELS, population_summary, temporal_windows
+
 CATS = ["message_type", "stream_name", "product_name", "vendor_name", "pipeline",
         "org_id", "action", "severity", "protocol"]
 NUMS = ["hour", "msg_len", "lag_h"]
@@ -59,34 +64,35 @@ def recall_at_fpr(y_true, scores, fpr_max=0.01):
 
 def main(n, encoder):
     cols = ["label_binary", "timestamp", "event_time", TEXT] + CATS
-    df = pd.read_parquet(ROOT / "data" / "signals" / "signals.parquet", columns=cols)
-    df = features(sample30k(df, n))
-    X, y = df[CATS + NUMS + [TEXT]], df["label_binary"]
-    cutoff = df["timestamp"].quantile(0.8)
-    tr, te = (df["timestamp"] <= cutoff).to_numpy(), (df["timestamp"] > cutoff).to_numpy()
+    raw = pd.read_parquet(ROOT / "data" / "signals" / "signals.parquet", columns=cols)
+    train_pop, test, drift = temporal_windows(raw)
+    train_df = features(sample30k(train_pop, n))
+    test_df = features(test)
+    X_train, y_train = train_df[CATS + NUMS + [TEXT]], train_df["label_binary"]
+    X_test, y_test = test_df[CATS + NUMS + [TEXT]], test_df["label_binary"]
 
     if encoder == "miniml":
         from sentence_transformers import SentenceTransformer  # requiere pip extra
         enc = SentenceTransformer("all-MiniLM-L6-v2")
         import numpy as np
-        Ttr = enc.encode(X[TEXT][tr].tolist(), show_progress_bar=False,
+        Ttr = enc.encode(X_train[TEXT].tolist(), show_progress_bar=False,
                          batch_size=256).astype("float32")
-        Tte = enc.encode(X[TEXT][te].tolist(), show_progress_bar=False,
+        Tte = enc.encode(X_test[TEXT].tolist(), show_progress_bar=False,
                          batch_size=256).astype("float32")
         enc_name, vec = "minilm-384", enc
     else:
         vec = TfidfVectorizer(max_features=5000, ngram_range=(1, 2),
                               sublinear_tf=True, min_df=5)
-        Ttr = vec.fit_transform(X[TEXT][tr].tolist())
-        Tte = vec.transform(X[TEXT][te].tolist())
+        Ttr = vec.fit_transform(X_train[TEXT].tolist())
+        Tte = vec.transform(X_test[TEXT].tolist())
         enc_name = "tfidf-5k"
 
     tab = ColumnTransformer([
         ("cat", OneHotEncoder(handle_unknown="ignore", max_categories=30), CATS),
         ("num", "passthrough", NUMS),
     ])
-    Atr = tab.fit_transform(X[tr][CATS + NUMS])
-    Ate = tab.transform(X[te][CATS + NUMS])
+    Atr = tab.fit_transform(X_train[CATS + NUMS])
+    Ate = tab.transform(X_test[CATS + NUMS])
     import numpy as np
     Xtr = hstack([Ttr, Atr]).tocsr()
     Xte = hstack([Tte, Ate]).tocsr()
@@ -94,11 +100,11 @@ def main(n, encoder):
     # ponytail: multi:softprob no acepta scale_pos_weight; sample_weight por clase = equivalente
     # xgboost>=3 exige labels enteros -> LabelEncoder + mapeo inverso al reportar
     from sklearn.preprocessing import LabelEncoder
-    le = LabelEncoder().fit(sorted(y[tr].unique().tolist()))
-    ytr, yte = le.transform(y[tr]), le.transform(y[te])
-    counts = y[tr].value_counts()
-    w = len(y[tr]) / (len(counts) * counts)
-    sw = y[tr].map(w).to_numpy()
+    le = LabelEncoder().fit(sorted(y_train.unique().tolist()))
+    ytr, yte = le.transform(y_train), le.transform(y_test)
+    counts = y_train.value_counts()
+    w = len(y_train) / (len(counts) * counts)
+    sw = y_train.map(w).to_numpy()
     clf = XGBClassifier(n_estimators=300, max_depth=6, learning_rate=0.08,
                         subsample=0.8, colsample_bytree=0.8, tree_method="hist",
                         objective="multi:softprob", num_class=3,
@@ -108,9 +114,9 @@ def main(n, encoder):
     proba = clf.predict_proba(Xte)
     classes = le.classes_.tolist()
 
-    rep = classification_report(y[te], p, output_dict=True, zero_division=0)
-    f1m = f1_score(y[te], p, average="macro")
-    print(classification_report(y[te], p, zero_division=0))
+    rep = classification_report(y_test, p, output_dict=True, zero_division=0)
+    f1m = f1_score(y_test, p, average="macro")
+    print(classification_report(y_test, p, zero_division=0))
     print("F1-macro:", f1m)
     prauc, per_class = {}, {}
     for i, c in enumerate(classes):
@@ -128,9 +134,13 @@ def main(n, encoder):
     print("recall malicious @1% FPR:", r1)
     metrics = {"model": "m2-texto-v1", "encoder": enc_name, "f1_macro": round(float(f1m), 4),
                "recall_mal_at_1fpr": r1, "per_class": per_class,
-               "n_train": int(tr.sum()), "n_test": int(te.sum()),
-               "config": {"tfidf": "5k word+char sublinear min_df=5" if enc_name == "tfidf-5k" else enc_name,
-                          "xgb": "300x6 lr=0.08 subsample=0.8", "split": "temporal 80/20",
+               "n_train": len(y_train), "n_test": len(y_test),
+               "evaluation": {"windows": WINDOW_LABELS,
+                              "test": population_summary(test),
+                              "drift": population_summary(drift)},
+               "config": {"tfidf": "5k word unigrams+bigrams, sublinear_tf, min_df=5" if enc_name == "tfidf-5k" else enc_name,
+                          "xgb": "300x6 lr=0.08 subsample=0.8", "split": "fixed UTC temporal window",
+                          "incident_split": "0 incidentes compartidos train/test (1515/69)",
                           "sample_n": n, "class_weight": "sample_weight balanceado"}}
     (ROOT / "models" / "m2_metrics.json").write_text(json.dumps(metrics, indent=2))
     with open(ROOT / "models" / "m2.pkl", "wb") as f:

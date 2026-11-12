@@ -20,7 +20,7 @@ MODEL = {"pipe": None, "meta": None, "name": "m1-stub",
          "m3": None, "m3name": "m3-stub"}
 
 # ponytail: tecnicas ATT&CK derivadas del tier (oraculo M4: micro-F1 0.9994 en test temporal;
-# en live son priors de regla, no atribucion por evento — ver notebooks/m4b_xgb_pertecnica_out.ipynb).
+# en live son priors de regla, no atribucion por evento — ver notebooks/m4b_xgb_pertecnica.ipynb).
 # M4b-XGB aprendido NO se despliega (T1041/T1567 P 0.08 mentirian al analista).
 TIER_TECH = {
     "malicious": (["T1190", "T1041", "T1567"], ["TA0001", "TA0010"]),
@@ -249,7 +249,7 @@ def model_metrics():
     h = ROOT / "models" / "m3_metrics.json"
     if h.exists():
         out["m3"] = json.loads(h.read_text())
-    for m in ("m4_metrics.json", "m4b_metrics.json", "m4c_exps.json", "m5_metrics.json"):
+    for m in ("m4_metrics.json", "m4b_metrics.json", "m4c_exps.json", "m4d_metrics.json", "m5_metrics.json"):
         f = ROOT / "models" / m
         if f.exists():
             out[m.split("_")[0]] = json.loads(f.read_text())

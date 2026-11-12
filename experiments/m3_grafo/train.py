@@ -171,7 +171,7 @@ def main(n):
                "evaluation": {"windows": WINDOW_LABELS,
                               "test": population_summary(test),
                               "drift": population_summary(drift)},
-               "config": {"vecindario": "±5min por host/credencial (ORG|valor)",
+               "config": {"vecindario": "[t-300s,t) por host/credencial (ORG|valor), causal sin futuro",
                           "agregacion": "8 estadísticas de vecinos previos + XGBoost 300x6",
                           "split": "fixed UTC temporal window", "sample_n": n}}
     (ROOT / "models" / "m3_metrics.json").write_text(json.dumps(metrics, indent=2))

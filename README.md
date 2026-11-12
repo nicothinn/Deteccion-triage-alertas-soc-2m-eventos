@@ -4,7 +4,7 @@
 
 **Clasifica cada alerta de un SOC real en benign / suspicious / malicious y la sirve en una consola de triage (cola por riesgo, cadena del incidente, cobertura MITRE).**
 
-Sobre **2,011,674 eventos reales** (`witfoo/precinct6-cybersecurity` v2.1.0): el baseline tabular llega a F1-macro 0.599 pero no ve lo malicioso (R 0.00); el texto (M2, 0.708) y el grafo de proveniencia (M3, 0.719) lo cazan (R ~0.97). La cascada M1→M2→M3 convierte el fallo tabular en arquitectura.
+Sobre **2,011,674 eventos reales** (`witfoo/precinct6-cybersecurity` v2.1.0): el baseline tabular llega a F1-macro 0.628 pero no ve lo malicioso (R 0.01); el texto (M2, 0.623, R mal 0.002) tampoco generaliza a campañas futuras — el 0.97 anterior era memorización por sample-then-split. M3 (0.719, medido con vecindario ±5min no causal) queda como cota alta. Protocolo honesto: ventanas UTC fijas, 0 incidentes compartidos train/test. Los modelos priorizan bien dentro de campañas vistas; no cazan campañas futuras no vistas.
 
 ## 1. Estructura del Proyecto
 
@@ -84,17 +84,19 @@ uv run uvicorn app.main:app --reload      # http://127.0.0.1:8000/health
 
 ## 5. Resultados y Evaluación del Modelo
 
-Test temporal futuro (sin shuffle). Métrica principal macro-F1 + PR-AUC por clase (accuracy es vacua: ≈94% con siempre-benign).
+Test temporal futuro en ventanas UTC fijas (train < 07-29, test 07-29→07-31, 0 incidentes compartidos de 1515/69). Métrica principal macro-F1 + PR-AUC por clase (accuracy es vacua: ≈94% con siempre-benign). Los números viejos con sample-then-split (M1 0.5991, M2 0.7084 con R mal 0.97) tenían fuga temporal y se retiran.
 
 | Modelo | F1-macro | malicious P/R/F1 | PR-AUC mal | recall@1%FPR | train/test |
 |---|---|---|---|---|---|
-| Baseline M1 tabular LightGBM | **0.5991** | 0.0507 / 0.0045 / 0.0082 | 0.3023 | — | 112848 / 28212 |
-| M2 TF-IDF 5k + XGBoost | **0.7084** | 0.7905 / 0.9698 / 0.8711 | 0.8261 | 0.0813 | 24000 / 6000 |
-| M3 vecindario ±5min + XGBoost (final) | **0.7186** | 0.7946 / 0.9620 / 0.8703 | 0.8154 | 0.0376 | 24000 / 6000 |
+| Baseline M1 tabular LightGBM | **0.6276** | 0.2275 / 0.0107 / 0.0204 | 0.2333 | — | 137508 / 574132 |
+| M2 TF-IDF 5k + XGBoost | **0.6232** | 0.2414 / 0.002 / 0.0039 | 0.218 | 0.4344 | 30000 / 574132 |
+| M3 vecindario causal [t-300s,t) + XGBoost | **0.7186*** | 0.7946 / 0.9620 / 0.8703 | 0.8154 | 0.0376 | 24000 / 6000 |
 
-Lectura: M1 recupera suspicious (R 0.96) pero colapsa en malicious; M2/M3 cazan malicious (R ~0.97) vía tokens T1190 / cadenas USER_ACTION, a costa de suspicious (R 0.16/0.19). Figuras en `reports/figures/`: `label_distribution.pdf` (IR 245:1), `temporal_volume.pdf` (malicious termina 07-30 → justifica split temporal), `confusion_m1.pdf` (malicious → benign/suspicious), `architecture.pdf` (pipeline). Variantes en `experiments/m1_tabular/leaderboard.csv` (logreg-F2 0.6148 supera en F1 pero se queda LGBM por latencia).
+\* M3 pendiente de re-medición en ventanas fijas (se abortó por costo: feats por evento sobre 574k): el 0.7186 se midió con vecindario ±5min no causal y es cota alta, no número de serve.
 
-Ablaciones extra (no despliegan, sí se reportan): **M4/M4b** multilabel ATT&CK por evento (6 técnicas; M4-LogReg micro 0.7484/macro 0.2516, M4b-XGB micro 0.7926/macro 0.2557) y **M4c** (E2 tab+grafo micro 0.8571/macro 0.2957, mejor de 4; el grafo ayuda pero T1041/T1567 siguen sin separarse → van como hint de tier, no como modelo) + **M5** Isolation Forest solo-benigno (ROC 0.174/PR-AUC 0.7243, recall mal 0.0: el ataque tabular es denso y pasa por normal → sirve como red zero-day, no como triage). Ver `notebooks/m4*_out.ipynb`, `notebooks/m5_anomalia_iforest_out.ipynb` y `GET /model/metrics`.
+Lectura honesta: M1 ordena volumen y recupera suspicious (R 0.99) pero no ve malicious; M2 tampoco generaliza a futuro (R mal 0.002 con umbral 0.5, aunque su ranking a 1% FPR llega a 0.43); el serve ya es causal y la consola prioriza dentro de campañas vistas. Figuras en `reports/figures/`: `label_distribution.pdf` (IR 245:1), `temporal_volume.pdf` (malicious termina 07-30 → justifica split temporal), `confusion_m1.pdf` (malicious → benign/suspicious), `architecture.pdf` (pipeline). Detalle del leakage en `notebooks/m1_variants_mlflow.ipynb` §6.5 y `notebooks/m4c_xgb_grafo.ipynb` (Lectura).
+
+Ablaciones extra (no despliegan, sí se reportan): **M4/M4b** multilabel ATT&CK por evento (6 técnicas; M4-LogReg micro 0.7484/macro 0.2516, M4b-XGB micro 0.7926/macro 0.2557) y **M4c** (E2 tab+grafo micro 0.8571/macro 0.2957, mejor de 4; el grafo ayuda pero T1041/T1567 siguen sin separarse → van como hint de tier, no como modelo) + **M5** Isolation Forest solo-benigno (ROC 0.174/PR-AUC 0.7243, recall mal 0.0: el ataque tabular es denso y pasa por normal → sirve como red zero-day, no como triage). **M4d** XGB por táctica (5 labels; micro 0.8772/macro 0.4264: TA0001/TA0002 F1 1.00/0.99, TA0009/TA0010 P 0.08/R 0.06 igual que M4b, TA0040 sin soporte en live). Ver `notebooks/m4*.ipynb`, `notebooks/m5_anomalia_iforest.ipynb` y `GET /model/metrics`.
 
 ## 6. Despliegue e Inferencia (Deployment)
 

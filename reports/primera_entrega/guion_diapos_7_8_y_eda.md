@@ -112,6 +112,6 @@ Cells 8-15 (orgs, productos, red, action/severity): tené a mano 2 datos por si 
 
 - [ ] `data/signals/signals.parquet` presente (117 MB) o el notebook no corre.
 - [ ] Kernel `.venv` Python 3.10.
-- [ ] Pre-ejecutar `eda_precinct6_out.ipynb` por si el live falla — muestra ese.
+- [ ] Pre-ejecutar `eda_precinct6.ipynb` por si el live falla — muestra ese.
 - [ ] Tener abierto `reports/eda/resumen_eda.md` como respaldo de números.
 - [ ] Tiempo: diapo 7 (1 min) + diapo 8 (2 min) + notebook (5 min) = 8 min, deja 7 para resto.

@@ -1,37 +1,69 @@
 {
   "model": "m1-tabar-v1",
-  "f1_macro": 0.5991,
+  "f1_macro": 0.6276,
   "per_class": {
     "benign": {
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0,
-      "support": 18506,
+      "support": 559030,
       "pr_auc": 1.0
     },
     "malicious": {
-      "precision": 0.0507,
-      "recall": 0.0045,
-      "f1": 0.0082,
-      "support": 3130,
-      "pr_auc": 0.3023
+      "precision": 0.2275,
+      "recall": 0.0107,
+      "f1": 0.0204,
+      "support": 3552,
+      "pr_auc": 0.2333
     },
     "suspicious": {
-      "precision": 0.6696,
-      "recall": 0.9602,
-      "f1": 0.789,
-      "support": 6576,
-      "pr_auc": 0.6758
+      "precision": 0.7647,
+      "recall": 0.9885,
+      "f1": 0.8623,
+      "support": 11550,
+      "pr_auc": 0.7645
     }
   },
-  "n_train": 112848,
-  "n_test": 28212,
+  "n_train": 137508,
+  "n_test": 574132,
+  "evaluation": {
+    "windows": {
+      "train": "timestamp < 2024-07-29T00:00:00Z",
+      "test": "[2024-07-29T00:00:00Z, 2024-07-31T00:00:00Z)",
+      "drift": "[2024-07-31T00:00:00Z, 2024-08-02T00:00:00Z)"
+    },
+    "test": {
+      "n": 574132,
+      "class_counts": {
+        "benign": 559030,
+        "suspicious": 11550,
+        "malicious": 3552
+      },
+      "prevalence": {
+        "benign": 0.973696,
+        "suspicious": 0.020117,
+        "malicious": 0.006187
+      }
+    },
+    "drift": {
+      "n": 111059,
+      "class_counts": {
+        "benign": 110847,
+        "suspicious": 212
+      },
+      "prevalence": {
+        "benign": 0.998091,
+        "suspicious": 0.001909
+      }
+    }
+  },
   "config": {
     "n_estimators": 200,
     "learning_rate": 0.08,
     "num_leaves": 63,
     "class_weight": "balanced",
-    "split": "temporal 80/20",
+    "split": "fixed UTC temporal window",
+    "incident_split": "0 incidentes compartidos train/test (1515/69)",
     "sample_n": 200000
   }
 }
