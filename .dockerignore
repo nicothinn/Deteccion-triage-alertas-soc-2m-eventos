@@ -8,8 +8,13 @@ soc-ui/node_modules/
 soc-ui/dist/
 notebooks/
 papers/
-reports/figures/
+reports/
+docs/
+contexto/
+experiments/
+tests/
 data/build/
 data/.cache/
 data/signals/incident_signals.parquet
+data/feedback.csv
 *.ipynb_checkpoints

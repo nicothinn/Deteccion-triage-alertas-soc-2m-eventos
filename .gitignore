@@ -25,3 +25,20 @@ data/feedback.csv
 
 # agente: planes/specs locales (no es contenido del proyecto)
 docs/superpowers/
+
+# notebook checkpoints and local run captures
+notebooks/.ipynb_checkpoints/
+out_tmp.txt
+out3_tmp.txt
+
+# regenerable experiment charts not used by the paper or final presentation
+reports/figures/compare_m1_m2.pdf
+reports/figures/compare_m4family.pdf
+reports/figures/compare_m6.pdf
+reports/figures/confusion_m2.pdf
+reports/figures/confusion_m3.pdf
+reports/figures/graph_feats_m3.pdf
+reports/figures/pr_m3.pdf
+reports/figures/tactics_m4d.pdf
+reports/figures/thresholds_m4t.pdf
+reports/figures/tokens_m2.pdf
