@@ -5,21 +5,26 @@ import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SEVC, api } from "../lib/api";
 
+const EVENT_PAGE_SIZE = 30;
+
 const INCIDENTS = [
-  { id: "acee85e0-4b4e-11ef-a07e-73bb772fb986", label: "Data Theft · 501 señales (el más grande)", reading: "El incidente más grande de la captura: 501 señales encadenadas. Lo que ves (10 nodos) es solo la punta; la tabla muestra 30 y el total está arriba. Cadena larga = exfiltración por etapas." },
-  { id: "04bdda80-4b51-11ef-98d0-55d447741aef", label: "Data Theft · 445 señales", reading: "Segunda cadena más grande. Compara su reporte con el anterior: mismo MO, distinta infraestructura." },
-  { id: "ac8def50-4b4e-11ef-a07e-73bb772fb986", label: "Data Theft · 120 señales", reading: "Cadena mediana: cabe casi entera en la vista. Buen ejemplo para la demo." },
-  { id: "7954cad0-4dee-11ef-9f66-fbdc83d0625f", label: "Data Theft · 20 señales (corta)", reading: "Cadena corta: se ve completa de un vistazo. Ideal para explicar la anatomía sin perderse." },
-  { id: "f93306f0-4df2-11ef-9440-1101dfaeda6b", label: "Data Theft · 10 señales (corta)", reading: "Micro-cadena de 10: ataque relámpago. Fíjate en los tipos de mensaje: pocos pasos, mismo objetivo." },
-  { id: "5beb8d60-4b52-11ef-99eb-59db075a1435", label: "Data Theft · 7 señales (mínima)", reading: "La más corta con reporte: 7 señales. Si M1/M2 la cazan, el sistema funciona hasta en lo mínimo." },
+  { id: "acee85e0-4b4e-11ef-a07e-73bb772fb986", label: "Precinct: Data Theft · 501 señales", reading: "Precinct agrupó 501 señales bajo la etiqueta Data Theft. La vista pagina una muestra de la secuencia; esa clasificación no es una confirmación independiente de un analista." },
+  { id: "04bdda80-4b51-11ef-98d0-55d447741aef", label: "Precinct: Data Theft · 445 señales", reading: "Otro incidente etiquetado Data Theft por Precinct. Compara los metadatos y la infraestructura del dataset; no implica que un analista validara la clasificación." },
+  { id: "ac8def50-4b4e-11ef-a07e-73bb772fb986", label: "Precinct: Data Theft · 120 señales", reading: "Ejemplo intermedio para recorrer eventos y relaciones; Data Theft es la etiqueta automática del conjunto." },
+  { id: "7954cad0-4dee-11ef-9f66-fbdc83d0625f", label: "Precinct: Data Theft · 20 señales", reading: "Secuencia pequeña para revisar en una sola sesión; la etiqueta sigue siendo la clasificación de Precinct." },
+  { id: "f93306f0-4df2-11ef-9440-1101dfaeda6b", label: "Precinct: Data Theft · 10 señales", reading: "Secuencia breve etiquetada Data Theft por Precinct; úsala para explorar tipos de evento y su orden temporal." },
+  { id: "5beb8d60-4b52-11ef-99eb-59db075a1435", label: "Precinct: Data Theft · 7 señales", reading: "Secuencia pequeña con reporte de Precinct. Sirve para explorar pocos eventos, no para medir por sí sola el rendimiento del modelo." },
 ];
 
 export default function Incident() {
   const { id } = useParams();
   const [manual, setManual] = useState("");
+  const [offset, setOffset] = useState(0);
   const incId = id ?? manual;
   const { data, isLoading } = useQuery({
-    queryKey: ["incident", incId], queryFn: () => api.incident(incId), enabled: incId.length > 7,
+    queryKey: ["incident", incId, offset],
+    queryFn: () => api.incident(incId, EVENT_PAGE_SIZE, offset),
+    enabled: incId.length > 7,
   });
 
   const { nodes, edges } = useMemo(() => {
@@ -42,19 +47,19 @@ export default function Incident() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold">Incidente <span className="text-xs font-normal text-mut">(cadena de ataque + reporte de caza)</span></h2>
+      <h2 className="text-lg font-semibold">Incidente <span className="text-xs font-normal text-mut">(eventos relacionados + reporte Precinct)</span></h2>
       <section className="mt-2 rounded-md border border-line bg-panel p-4">
         <h3 className="font-semibold">Qué estás viendo</h3>
         <p className="mt-1 text-sm text-txt/90">
           Cada incidente Precinct es un conjunto de señales encadenadas + un reporte en lenguaje natural.
-          La cadena muestra los primeros 10 eventos en orden; la tabla, 30; el reporte cuenta el MO (aquí casi todo es <b>Data Theft</b>).
+          En cada página, la cadena visual muestra hasta 10 eventos y la tabla hasta 30, en orden temporal. El reporte resume el MO (aquí casi todo es <b>Data Theft</b>).
         </p>
         <details className="mt-2 text-sm">
           <summary className="cursor-pointer text-[#00ff41]">Cómo leer la cadena</summary>
           <ul className="mt-1 list-disc space-y-1 pl-5 text-txt/90">
             <li>Lee de izquierda a derecha: es orden temporal, no topología.</li>
-            <li>El borde de cada nodo es su tier real (rojo = malicious). Si todo es rojo, es una cadena de ataque confirmada.</li>
-            <li>Cadenas de 500 (arriba) vs 7 (abajo): el mismo MO a distinta escala. El modelo debe cazar ambas.</li>
+            <li>El color muestra la etiqueta automática de Precinct (rojo = malicious); no equivale a confirmación de un analista.</li>
+            <li>Secuencias de 501 vs 7 señales: compara su tamaño y contexto; las etiquetas y reportes provienen de Precinct, no de revisión humana.</li>
           </ul>
         </details>
       </section>
@@ -63,7 +68,7 @@ export default function Incident() {
           value={INCIDENTS.some((x) => x.id === incId) ? incId : ""}
           onChange={(e) => { if (e.target.value) window.location.href = `/incidente/${e.target.value}`; }}
           className="mono min-w-[320px] flex-1 rounded-md border border-line bg-panel px-3 py-2 text-sm">
-          <option value="">Elige un incidente real…</option>
+          <option value="">Elige un incidente del dataset…</option>
           {INCIDENTS.map((x) => (
             <option key={x.id} value={x.id}>{x.label}</option>
           ))}
@@ -94,9 +99,16 @@ export default function Incident() {
 
       {data && (
         <>
-          <p className="mono mt-3 text-xs text-mut">{data.incident_id} · {data.n} eventos totales (mostrando cadena de 10)</p>
+          <p className="mono mt-3 text-xs text-mut">{data.incident_id} · {data.n} eventos totales</p>
           <div className="mt-2 h-[300px] rounded-md border border-line">
             <ReactFlow nodes={nodes} edges={edges} fitView colorMode="dark" />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs text-mut">
+            <span>{data.n ? `${offset + 1}–${Math.min(offset + data.events.length, data.n)} de ${data.n} eventos` : "Sin eventos"}</span>
+            <div className="flex gap-2">
+              <button disabled={offset === 0 || isLoading} onClick={() => setOffset(Math.max(0, offset - EVENT_PAGE_SIZE))} className="rounded border border-line px-3 py-1 disabled:opacity-40">Anterior</button>
+              <button disabled={offset + data.events.length >= data.n || isLoading} onClick={() => setOffset(offset + EVENT_PAGE_SIZE)} className="rounded border border-line px-3 py-1 disabled:opacity-40">Siguiente</button>
+            </div>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
             <section className="overflow-auto rounded-md border border-line bg-panel" style={{ maxHeight: 320 }}>
@@ -115,7 +127,8 @@ export default function Incident() {
               </table>
             </section>
             <section className="rounded-md border border-line bg-panel p-4">
-              <h3 className="font-semibold">Reporte</h3>
+              <h3 className="font-semibold">Reporte de Precinct</h3>
+              <p className="mt-1 text-xs text-mut">Resumen generado desde metadatos del incidente, no informe independiente de un analista.</p>
               {data.report ? (
                 <>
                   <p className="mt-1 text-sm">{data.report.mo_name} · suspicion {data.report.suspicion_score} · {data.report.report_source}</p>

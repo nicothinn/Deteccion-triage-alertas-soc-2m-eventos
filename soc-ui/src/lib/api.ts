@@ -3,6 +3,13 @@ export const API = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
 export type Label = "benign" | "suspicious" | "malicious";
 
+export interface QueueFilters {
+  label: string; org_id: string; message_type: string; severity: string; search: string;
+  start_ts?: number; end_ts?: number;
+}
+
+export interface QueuePage { items: SocEvent[]; total: number }
+
 export interface SocEvent {
   artifact_id: string;
   timestamp: number;
@@ -34,6 +41,21 @@ export interface Stats {
 }
 
 export interface ClassMetrics { precision: number; recall: number; f1: number; support: number; pr_auc: number }
+export interface MultilabelMetrics {
+  model?: string; labels: string[]; micro_f1: number; macro_f1: number; hamming: number; subset_acc: number;
+  n_train: number; n_test: number; skipped?: string[]; pr_auc?: Record<string, number>; pr_auc_note?: string;
+  oracle?: { micro_f1: number; macro_f1: number };
+}
+export interface M4tMetrics {
+  split: string; beta: number; n_train: number; n_val: number; n_test: number; skipped: string[];
+  tuned: { micro_f1: number; macro_f1: number; hamming: number; subset_acc: number };
+  fixed_05: { micro_f1: number; macro_f1: number; hamming: number; subset_acc: number };
+  thresholds: Record<string, { threshold: number; f2_val: number; pos_train: number; pos_val: number }>;
+}
+export interface M6Metrics {
+  split: string; labels: string[];
+  m6a: MultilabelMetrics; m6b: MultilabelMetrics;
+}
 export interface ModelMetrics {
   model: string; f1_macro: number; per_class: Record<string, ClassMetrics>;
   n_train: number; n_test: number;
@@ -43,12 +65,13 @@ export interface ModelMetrics {
          per_class: Record<string, ClassMetrics>; n_train: number; n_test: number } | null;
   m3?: { model: string; f1_macro: number; recall_mal_at_1fpr: number;
          per_class: Record<string, ClassMetrics>; n_train: number; n_test: number } | null;
-  m4?: { model: string; labels: string[]; micro_f1: number; macro_f1: number;
-         hamming: number; subset_acc: number; n_train: number; n_test: number } | null;
-  m4b?: { model: string; labels: string[]; micro_f1: number; macro_f1: number;
-         hamming: number; subset_acc: number; n_train: number; n_test: number } | null;
+  m4?: MultilabelMetrics | null;
+  m4b?: MultilabelMetrics | null;
   m4c?: Record<string, { micro_f1: number; macro_f1: number; hamming: number; subset_acc: number }> | null;
+ m4d?: MultilabelMetrics | null;
+  m4t?: M4tMetrics | null;
   m5?: { model: string; recall_malicious: number; recall_suspicious: number; pr_auc: number; roc_auc: number; fpr_benigno: number } | null;
+  m6?: M6Metrics | null;
 }
 
 export interface ExplainFeat { feature: string; importance: number; value: number; active: boolean }
@@ -56,8 +79,8 @@ export interface ExplainResp { label: string; proba: Record<string, number>; mod
 
 export interface Vecindario {
   node: string; n_edges: number;
-  nodes: { id: string; type: string; signal_count: number; suspicion: number; org: string }[];
-  edges: { src: string; dst: string; type: string }[];
+  nodes: { id: string; type: string; signal_count: number; suspicion: number; org: string; depth: number }[];
+  edges: { src: string; dst: string; type: string; depth: number }[];
 }
 
 export interface ScoreResp {
@@ -67,7 +90,7 @@ export interface ScoreResp {
 }
 
 export interface IncidentResp {
-  incident_id: string; n: number;
+  incident_id: string; n: number; offset: number; limit: number;
   events: Record<string, unknown>[];
   report: { mo_name: string; suspicion_score: number; report_source: string; report_text: string } | null;
 }
@@ -81,11 +104,24 @@ async function get<T>(path: string): Promise<T> {
 export const api = {
   health: () => get<{ ok: boolean; model: string; loaded: boolean }>("/health"),
   stats: () => get<Stats>("/stats"),
-  queue: (label = "all", limit = 60) => get<SocEvent[]>(`/queue?label=${label}&limit=${limit}`),
-  incident: (id: string) => get<IncidentResp>(`/incident/${id}`),
+  queue: async (filters: QueueFilters, limit: number, offset: number): Promise<QueuePage> => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined && value !== "") params.set(key, String(value));
+    }
+    params.set("limit", String(limit));
+    params.set("offset", String(offset));
+    const r = await fetch(`${API}/queue?${params}`);
+    if (!r.ok) throw new Error(`${r.status} /queue`);
+    return { items: await r.json() as SocEvent[], total: Number(r.headers.get("X-Total-Count") ?? 0) };
+  },
+  incident: (id: string, limit = 30, offset = 0) =>
+    get<IncidentResp>(`/incident/${encodeURIComponent(id)}?limit=${limit}&offset=${offset}`),
   modelMetrics: () => get<ModelMetrics>("/model/metrics"),
-  vecindario: (node: string, tipos = "", limit = 150) =>
-    get<Vecindario>(`/graph/vecindario?node=${encodeURIComponent(node)}&tipos=${tipos}&limit=${limit}`),
+  vecindario: (node: string, tipos = "", limit = 60, depth = 1) => {
+    const params = new URLSearchParams({ node, tipos, limit: String(limit), depth: String(depth) });
+    return get<Vecindario>(`/graph/vecindario?${params}`);
+  },
   explain: async (e: SocEvent): Promise<ExplainResp> => {
     const r = await fetch(`${API}/explain`, {
       method: "POST",

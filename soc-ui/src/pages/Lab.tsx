@@ -90,12 +90,12 @@ export default function Lab() {
 
       {data.m3 && (
         <section className="mt-4 rounded-md border border-line bg-panel p-4">
-          <h3 className="panel-title">M3 grafo (SAGE-mean ±5min) — F1-macro {data.m3.f1_macro}</h3>
+          <h3 className="panel-title">M3 grafo — medición histórica no causal, F1-macro {data.m3.f1_macro}</h3>
           <p className="mono mt-1 text-xs text-txt/90">
             malicious P {data.m3.per_class["malicious"]?.precision} · R {data.m3.per_class["malicious"]?.recall} · F1 {data.m3.per_class["malicious"]?.f1} · recall@1%FPR {data.m3.recall_mal_at_1fpr}
           </p>
           <p className="mono mt-1 text-xs text-mut">
-            suspicious F1 {data.m3.per_class["suspicious"]?.f1} · el vecindario aporta contexto pero no ranking a FPR estricto · deep-dive explícito en la Cola
+            suspicious F1 {data.m3.per_class["suspicious"]?.f1} · esta métrica usó vecinos ±5 min, incluidos eventos futuros; no representa el endpoint causal actual ni debe interpretarse como rendimiento de producción.
           </p>
         </section>
       )}

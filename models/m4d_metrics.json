@@ -18,9 +18,10 @@
   "n_test": 22904,
   "pr_auc": {
     "TA0001": 0.9995,
-    "TA0002": 0.9959,
-    "TA0009": 0.158,
-    "TA0010": 0.158,
+    "TA0002": 0.9988,
+    "TA0009": 0.1882,
+    "TA0010": 0.1882,
     "TA0040": 0.0
-  }
+  },
+  "pr_auc_note": "sobre scores continuos (corregido; el committed usaba etiquetas duras)"
 }

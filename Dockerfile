@@ -1,6 +1,7 @@
 # un contenedor: API + web estatica en el mismo :8000
 # build: docker build -t soc-precinct6 .
-# run:   docker run -p 8000:8000 soc-precinct6
+# run local (sin feedback persistente): docker run -p 127.0.0.1:8000:8000 soc-precinct6
+# use docker compose for persistent feedback
 
 # --- web: build del React ---
 FROM node:22-alpine AS web
@@ -24,8 +25,8 @@ COPY app/ ./app/
 COPY src/ ./src/
 COPY data/signals/signals.parquet ./data/signals/signals.parquet
 COPY data/graph/nodes.parquet data/graph/edges-00000.parquet data/graph/attack_reports.parquet ./data/graph/
-COPY models/m1.pkl models/m1_metrics.json models/m1_meta.json ./models/
-COPY models/m2.pkl models/m2_metrics.json models/m3.pkl models/m3_metrics.json ./models/
+COPY models/m1.pkl models/m2.pkl models/m3.pkl ./models/
+COPY models/*.json ./models/
 COPY --from=web /w/dist ./soc-ui/dist
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"

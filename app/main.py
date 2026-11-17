@@ -1,14 +1,17 @@
 """API SOC Precinct6: sirve M1 tabular (+ stubs M2/M3). uv run uvicorn app.main:app --reload"""
 # ponytail: un archivo, carga perezosa del pkl, sin capas de más
+import csv
 import json
+import os
 import pickle
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -32,9 +35,9 @@ BASELINE = {"f1_macro": 0.599, "n_train": 112848, "note": "M1 tabular, split tem
 SIG = ROOT / "data" / "signals" / "signals.parquet"
 REP = ROOT / "data" / "graph" / "attack_reports.parquet"
 QCOLS = ["artifact_id", "timestamp", "message_type", "stream_name", "pipeline",
-         "product_name", "vendor_name", "src_ip", "dst_ip", "action",
-         "severity", "protocol", "label_binary", "attack_techniques", "attack_tactics",
-         "message_sanitized", "org_id", "incident_ids"]
+         "product_name", "vendor_name", "src_ip", "dst_ip", "src_host", "dst_host",
+         "username", "matched_rules", "action", "severity", "protocol", "label_binary",
+         "attack_techniques", "attack_tactics", "message_sanitized", "org_id", "incident_ids"]
 # ponytail: conteos fijos del EDA, evita escanear 2M por request
 STATS = {"total": 2011674, "benign": 1897153, "suspicious": 106793, "malicious": 7728,
          "top_types": {"security_audit_event": 336425, "management_message": 266320,
@@ -78,7 +81,13 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="SOC Precinct6", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+CORS_ORIGINS = [x.strip() for x in os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000",
+).split(",") if x.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS,
+                   allow_methods=["GET", "POST"], allow_headers=["Content-Type"],
+                   expose_headers=["X-Total-Count"])
 
 class LogIn(BaseModel):
     message_type: str = "firewall_action"
@@ -278,44 +287,58 @@ def explain(log: LogIn, top: int = 14):
 
 class FeedbackIn(BaseModel):
     artifact_id: str = ""
-    decision: str = "escalar"  # escalar | monitorear | falso_positivo
-    note: str = ""
+    decision: Literal["escalar", "monitorear", "falso_positivo"] = "escalar"
+    note: str = Field(default="", max_length=2000)
 
 @app.post("/feedback")
 def feedback(fb: FeedbackIn):
     # ponytail: append csv, el analista corrige y eso re-entrena despues
-    f = ROOT / "data" / "feedback.csv"
+    f = Path(os.getenv("FEEDBACK_PATH", str(ROOT / "data" / "feedback.csv")))
+    f.parent.mkdir(parents=True, exist_ok=True)
     new = not f.exists()
-    with open(f, "a", encoding="utf-8") as fh:
+    note = fb.note.replace("\r", " ").replace("\n", " ")[:500]
+    with open(f, "a", encoding="utf-8", newline="") as fh:
+        writer = csv.writer(fh)
         if new:
-            fh.write("ts,artifact_id,decision,note\n")
-        note = fb.note.replace("\n", " ").replace(",", ";")[:500]
-        fh.write(f"{datetime.now(timezone.utc).isoformat()},{fb.artifact_id},{fb.decision},{note}\n")
-    n = sum(1 for _ in open(f, encoding="utf-8")) - 1
+            writer.writerow(["ts", "artifact_id", "decision", "note"])
+        writer.writerow([datetime.now(timezone.utc).isoformat(), fb.artifact_id, fb.decision, note])
+    with open(f, encoding="utf-8", newline="") as fh:
+        n = sum(1 for _ in csv.reader(fh)) - 1
     return {"ok": True, "n": n}
 
+def graph_neighborhood(edges: pd.DataFrame, node: str, *, depth: int, limit: int, types=None):
+    if depth not in (1, 2):
+        raise ValueError("depth debe ser 1 o 2")
+    graph = edges[edges["type"].isin(types)] if types else edges
+    seen, frontier, depths, selected = {node}, {node}, {node: 0}, []
+    for hop in range(1, depth + 1):
+        rows = graph[graph["src"].isin(frontier) | graph["dst"].isin(frontier)].copy()
+        from_frontier = rows["src"].isin(frontier)
+        rows["_other"] = rows["dst"].where(from_frontier, rows["src"])
+        rows = rows[~rows["_other"].isin(seen)].drop_duplicates("_other").head(limit)
+        if rows.empty:
+            break
+        rows["depth"] = hop
+        selected.append(rows[["src", "dst", "type", "depth"]])
+        frontier = set(rows["_other"])
+        depths.update({n: hop for n in frontier})
+        seen.update(frontier)
+    out = pd.concat(selected, ignore_index=True) if selected else pd.DataFrame(columns=["src", "dst", "type", "depth"])
+    return out, depths
+
+
 @app.get("/graph/vecindario")
-def vecindario(node: str, tipos: str = "", limit: int = 150):
-    # ponytail: 1 salto sobre 1.7M aristas, acotado por limit
+def vecindario(node: str, tipos: str = "", limit: int = Query(60, ge=1, le=120),
+               depth: int = Query(1, ge=1, le=2)):
+    # ponytail: máximo 120 vecinos por nivel; profundidad limitada a 2
     gf = ROOT / "data" / "graph" / "edges-00000.parquet"
     nf = ROOT / "data" / "graph" / "nodes.parquet"
     if not gf.exists():
         raise HTTPException(404, "grafo no disponible")
-    e = pd.read_parquet(gf, columns=["src", "dst", "type"])
-    m = (e["src"] == node) | (e["dst"] == node)
-    if tipos:
-        want = {t.strip() for t in tipos.split(",") if t.strip()}
-        m &= e["type"].isin(want)
-    e = e[m]
-    # ponytail: diversidad primero — una arista por vecino, si no head() trae
-    # miles de filas repetidas al mismo host y el grafo sale con 2 nodos
-    if len(e) > limit:
-        other = e["dst"].where(e["src"] == node, e["src"])
-        e = e.assign(_o=other).drop_duplicates("_o").head(limit).drop(columns="_o")
-    else:
-        e = e.head(limit)
-    ids = {node} | set(e["src"]) | set(e["dst"])
-    nodes_out = []
+    all_edges = pd.read_parquet(gf, columns=["src", "dst", "type"])
+    want = {t.strip() for t in tipos.split(",") if t.strip()} or None
+    e, node_depths = graph_neighborhood(all_edges, node, depth=depth, limit=limit, types=want)
+    ids = set(node_depths)
     nodes_out = []
     if nf.exists():
         n = pd.read_parquet(nf)
@@ -331,36 +354,75 @@ def vecindario(node: str, tipos: str = "", limit: int = 150):
             nodes_out.append({"id": r["node_id"], "type": r["type"],
                               "signal_count": int(num("signal_count")),
                               "suspicion": round(num("suspicion_score"), 4),
-                              "org": str(a.get("org_id", ""))})
+                              "org": str(a.get("org_id", "")),
+                              "depth": node_depths[r["node_id"]]})
     return {"node": node, "n_edges": len(e), "nodes": nodes_out,
-            "edges": [{"src": r["src"], "dst": r["dst"], "type": r["type"]}
+            "edges": [{"src": r["src"], "dst": r["dst"], "type": r["type"], "depth": int(r["depth"])}
                       for _, r in e.iterrows()]}
 
+def filter_queue_frame(df: pd.DataFrame, *, label="all", org_id="", message_type="", severity="",
+                       search="", start_ts=None, end_ts=None):
+    out = df
+    for column, value in (("label_binary", label), ("org_id", org_id),
+                          ("message_type", message_type), ("severity", severity)):
+        if value and value != "all" and column in out:
+            out = out[out[column].fillna("").astype(str).str.casefold() == value.casefold()]
+    if start_ts is not None:
+        out = out[out["timestamp"] >= start_ts]
+    if end_ts is not None:
+        out = out[out["timestamp"] < end_ts]
+    term = search.strip()
+    if term:
+        cols = [c for c in ("artifact_id", "src_ip", "dst_ip", "src_host", "dst_host",
+                            "username", "message_type", "product_name", "vendor_name", "matched_rules") if c in out]
+        found = pd.Series(False, index=out.index)
+        for col in cols:
+            found |= out[col].fillna("").astype(str).str.contains(term, case=False, regex=False)
+        out = out[found]
+    return out
+
+
+def paginate_frame(df: pd.DataFrame, *, offset: int, limit: int):
+    return len(df), df.iloc[offset:offset + limit]
+
+
 @app.get("/queue")
-def queue(label: str = "all", limit: int = 60):
-    # ponytail: maliciosos primero, sin paginacion real
+def queue(response: Response, label: str = "all", org_id: str = Query("", max_length=32),
+          message_type: str = Query("", max_length=80), severity: str = Query("", max_length=40),
+          search: str = Query("", max_length=120), start_ts: float | None = None,
+          end_ts: float | None = None, limit: int = Query(60, ge=1, le=200),
+          offset: int = Query(0, ge=0)):
+    if label not in {"all", "benign", "suspicious", "malicious"}:
+        raise HTTPException(422, "label no válida")
+    if start_ts is not None and end_ts is not None and start_ts >= end_ts:
+        raise HTTPException(422, "start_ts debe ser menor que end_ts")
     df = pd.read_parquet(SIG, columns=QCOLS)
-    if label != "all":
-        df = df[df.label_binary == label]
-        out = df.sort_values("timestamp", ascending=False).head(limit)
-    else:
-        mal = df[df.label_binary == "malicious"]
-        sus = df[df.label_binary == "suspicious"].sample(min((df.label_binary == "suspicious").sum(), limit // 2), random_state=7)
-        ben = df[df.label_binary == "benign"].sample(min((df.label_binary == "benign").sum(), limit // 4), random_state=7)
-        out = pd.concat([mal.head(limit // 4), sus, ben]).sort_values("timestamp", ascending=False).head(limit)
+    df = filter_queue_frame(df, label=label, org_id=org_id, message_type=message_type,
+                            severity=severity, search=search, start_ts=start_ts, end_ts=end_ts)
+    priority = df["label_binary"].map({"malicious": 0, "suspicious": 1, "benign": 2}).fillna(3)
+    df = df.assign(_priority=priority).sort_values(
+        ["_priority", "timestamp"], ascending=[True, False], kind="stable").drop(columns="_priority")
+    total, out = paginate_frame(df, offset=offset, limit=limit)
+    response.headers["X-Total-Count"] = str(total)
     return out.fillna("").to_dict("records")
 
+def incident_page_frame(df: pd.DataFrame, inc_id: str, *, offset: int, limit: int):
+    mask = df["incident_ids"].fillna("").astype(str).str.contains(json.dumps(inc_id), na=False, regex=False)
+    events = df[mask].sort_values("timestamp", kind="stable")
+    return len(events), events.iloc[offset:offset + limit]
+
+
 @app.get("/incident/{inc_id}")
-def incident(inc_id: str, limit: int = 200):
+def incident(inc_id: str, limit: int = Query(30, ge=1, le=200), offset: int = Query(0, ge=0)):
     df = pd.read_parquet(SIG)
-    ev = df[df["incident_ids"].str.contains(inc_id, na=False)].sort_values("timestamp").head(limit)
+    total, ev = incident_page_frame(df, inc_id, offset=offset, limit=limit)
     rep = None
     if REP.exists():
         r = pd.read_parquet(REP)
         hit = r[r.incident_id == inc_id]
         if len(hit):
             rep = hit.iloc[0].fillna("").to_dict()
-    return {"incident_id": inc_id, "n": int((df["incident_ids"].str.contains(inc_id, na=False)).sum()),
+    return {"incident_id": inc_id, "n": total, "offset": offset, "limit": limit,
             "events": ev.fillna("").to_dict("records"), "report": rep}
 
 @app.post("/score", response_model=LogOut)

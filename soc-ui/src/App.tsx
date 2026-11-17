@@ -6,7 +6,7 @@ import Incident from "./pages/Incident";
 import Lab from "./pages/Lab";
 import Panorama from "./pages/Panorama";
 import Queue from "./pages/Queue";
-import { api } from "./lib/api";
+import { API, api } from "./lib/api";
 
 const qc = new QueryClient();
 
@@ -40,7 +40,7 @@ function Shell() {
         <NavLink to="/grafo" className={link}>Grafo</NavLink>
         <NavLink to="/cobertura" className={link}>Cobertura MITRE</NavLink>
         <NavLink to="/lab" className={link}>Laboratorio</NavLink>
-        <a className="mono ml-auto text-xs text-mut" href="http://127.0.0.1:8000/docs" target="_blank" rel="noreferrer">
+        <a className="mono ml-auto text-xs text-mut" href={`${API}/docs`} target="_blank" rel="noreferrer">
           API docs
         </a>
       </nav>

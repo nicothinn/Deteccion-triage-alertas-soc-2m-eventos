@@ -34,18 +34,20 @@ export default function Graph() {
   const [q, setQ] = useState(SUGGEST[0].node);
   const [tipos, setTipos] = useState<string[]>(["USER_ACTION", "NETWORK_FLOW"]);
   const [lim, setLim] = useState(60);
+  const [depth, setDepth] = useState(1);
   const { data, isLoading } = useQuery({
-    queryKey: ["vec", q, tipos.join(","), lim],
-    queryFn: () => api.vecindario(q, tipos.join(","), 400),
+    queryKey: ["vec", q, tipos.join(","), lim, depth],
+    queryFn: () => api.vecindario(q, tipos.join(","), lim, depth),
     enabled: q.length > 3,
   });
 
   const { nodes, edges } = useMemo(() => {
     const all = (data?.nodes ?? []).filter((n) => n.id !== q);
     // orden: sospechosos primero, luego por signal_count
-    const sorted = [...all].sort((a, b) => (b.suspicion - a.suspicion) || (b.signal_count - a.signal_count));
-    const vis = sorted.slice(0, lim);
-    const R1 = 420, R2 = 700;
+    const vis = [...all].sort((a, b) => (a.depth - b.depth) || (b.suspicion - a.suspicion) || (b.signal_count - a.signal_count));
+    const firstRadius = 680, ringGap = 260;
+    const firstHopRings = Math.max(1, Math.ceil(vis.filter((n) => n.depth === 1).length / 18));
+    const secondRadius = firstRadius + (firstHopRings - 1) * ringGap + 520;
     const ns = [
       {
         id: q,
@@ -58,12 +60,14 @@ export default function Graph() {
           textShadow: GLOW, boxShadow: "0 0 18px rgba(0,255,65,0.45)",
         },
       },
-      ...vis.map((n, i) => {
-        const ring = i < 18 ? 0 : 1;
-        const k = ring === 0 ? i : i - 18;
-        const per = ring === 0 ? Math.min(vis.length, 18) : vis.length - 18;
-        const ang = (2 * Math.PI * k) / Math.max(per, 1) - Math.PI / 2;
-        const R = ring === 0 ? R1 : R2;
+      ...vis.map((n) => {
+        const layer = vis.filter((x) => x.depth === n.depth);
+        const i = layer.findIndex((x) => x.id === n.id);
+        const ring = Math.floor(i / 18);
+        const k = i % 18;
+        const perRing = Math.min(18, layer.length - ring * 18);
+        const ang = (2 * Math.PI * k) / Math.max(perRing, 1) - Math.PI / 2;
+        const R = (n.depth === 1 ? firstRadius : secondRadius) + ring * ringGap;
         const hot = n.suspicion > 0;
         return {
           id: n.id,
@@ -82,7 +86,7 @@ export default function Graph() {
     ];
     const ids = new Set(ns.map((n) => n.id));
     const es = (data?.edges ?? [])
-      .filter((e) => ids.has(e.src) && ids.has(e.dst) && (e.src === q || e.dst === q))
+      .filter((e) => ids.has(e.src) && ids.has(e.dst))
       .slice(0, 300)
       .map((e, i) => ({
         id: `e${i}`,
@@ -94,32 +98,30 @@ export default function Graph() {
         style: { stroke: ECOLOR[e.type] ?? NEON, strokeWidth: 1.5 },
       }));
     return { nodes: ns, edges: es };
-  }, [data, q, lim]);
+  }, [data, q]);
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-[#00ff41]" style={{ textShadow: "0 0 8px rgba(0,255,65,0.7)" }}>Proveniencia_ <span className="text-xs font-normal text-mut">(1 salto, layout estrella)</span></h2>
+      <h2 className="text-lg font-semibold text-[#00ff41]" style={{ textShadow: "0 0 8px rgba(0,255,65,0.7)" }}>Proveniencia_ <span className="text-xs font-normal text-mut">({depth} {depth === 1 ? "salto" : "saltos"}, layout por nivel)</span></h2>
       <section className="mt-2 rounded-md border border-line bg-panel p-4">
         <h3 className="font-semibold">Qué estás viendo</h3>
         <p className="mt-1 text-sm text-txt/90">
           El nodo ★ es tu punto de partida y cada punto verde es una máquina o credencial que habló con él
-          (1 salto en el grafo de 1.7M aristas). <b className="text-[#ff5c7a]">Rojo = suspicion_score &gt; 0</b>,
-          verde = tráfico normal. Primer anillo = los 18 vecinos más sospechosos, segundo anillo = el resto.
+          (1.7M aristas disponibles). <b className="text-[#ff5c7a]">Rojo = suspicion_score &gt; 0</b>,
+          verde = tráfico sin sospecha registrada. Anillo 1 = vecinos directos; anillo 2 = vecinos de esos vecinos.
         </p>
         <details className="mt-2 text-sm">
           <summary className="cursor-pointer text-[#00ff41]">Cómo leerlo (3 reglas)</summary>
           <ul className="mt-1 list-disc space-y-1 pl-5 text-txt/90">
             <li><b>Concentración:</b> muchos vecinos del mismo tipo en poco tiempo = campaña, no ruido. M3 cuenta eso en ±5 min.</li>
-            <li><b>Color de arista:</b> USER_ACTION (accesos) y NETWORK_FLOW (conexiones) delatan lateralidad y C2; INCIDENT_LINK (rojo) = ya confirmado en un incidente.</li>
+            <li><b>Color de arista:</b> USER_ACTION (accesos) y NETWORK_FLOW (conexiones) dan contexto; INCIDENT_LINK (rojo) indica vínculo en los datos, no confirmación independiente.</li>
             <li><b>Sospecha:</b> el borde rojo hereda el suspicion del motor Precinct, no del modelo — úsalo para priorizar, confirma con Cola/Incidente.</li>
           </ul>
         </details>
         <details className="mt-1 text-sm">
           <summary className="cursor-pointer text-[#00ff41]">Qué hace M3 con este vecindario</summary>
           <p className="mt-1 text-txt/90">
-            Por cada evento M3 junta lo que ves aquí en ±5 min y calcula 8 números (nº vecinos, nº hosts, nº usuarios,
-            % bloqueos, % firewall, % fallos de login, tipos distintos, minutos de span) + XGBoost.
-            F1-macro 0.719, recall malicious 0.96. Botón “Consultar vecindario M3” en la Cola para probarlo con un artifact_id real.
+            Por evento, M3 resume el vecindario causal previo en 8 números y aplica XGBoost. La métrica publicada (F1 0.719 / recall malicious 0.96) es de una evaluación antigua no causal con ±5 min; no mide este endpoint. Usa el resultado como apoyo exploratorio, no como veredicto.
           </p>
         </details>
       </section>
@@ -130,7 +132,7 @@ export default function Graph() {
         <button className="rounded-md border border-line bg-panel px-4 text-sm">Explorar</button>
       </form>
       <div className="mt-2">
-        <p className="text-xs text-mut">Ataques reales (presets verificados en el EDA):</p>
+        <p className="text-xs text-mut">Entidades de ejemplo del dataset:</p>
         <div className="mt-1 flex flex-wrap gap-2">
           {SUGGEST.map((s) => (
             <button key={s.node} title={s.desc} onClick={() => { setNode(s.node); setQ(s.node); }}
@@ -152,7 +154,12 @@ export default function Graph() {
         })()}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="ml-2 text-xs text-mut">Nodos:</span>
+        <span className="text-xs text-mut">Profundidad:</span>
+        {[1, 2].map((n) => (
+          <button key={n} onClick={() => setDepth(n)}
+            className={`mono rounded border px-2 py-1 text-xs ${depth === n ? "border-line bg-ink text-txt" : "border-line bg-panel text-mut"}`}>{n} {n === 1 ? "salto" : "saltos"}</button>
+        ))}
+        <span className="ml-2 text-xs text-mut">Máx. vecinos por nivel:</span>
         {[25, 60, 120].map((n) => (
           <button key={n} onClick={() => setLim(n)}
             className={`mono rounded border px-2 py-1 text-xs ${lim === n ? "border-line bg-ink text-txt" : "border-line bg-panel text-mut"}`}>{n}</button>
@@ -171,14 +178,14 @@ export default function Graph() {
       {data && (
         <>
           <p className="mono mt-3 text-xs text-mut">
-            {data.node} · {data.n_edges} aristas vecinas · mostrando {nodes.length - 1} vecinos (sospechosos primero)
+            {data.node} · {data.n_edges} aristas · mostrando {nodes.length - 1} vecinos en {depth} nivel(es) (sospechosos primero por nivel)
           </p>
           <div className="mt-2 h-[520px] rounded-md border border-[#0f3d1e] bg-black">
             <ReactFlow nodes={nodes} edges={edges} fitView colorMode="dark" style={{ background: "#000" }} proOptions={{ hideAttribution: true }}>
               <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="#0f3d1e" bgColor="#000" />
             </ReactFlow>
           </div>
-          <p className="mt-1 text-xs text-mut">Rojo = suspicion_score &gt; 0 · aristas solo hacia ★ (1 salto real). Verde = tráfico normal.</p>
+          <p className="mt-1 text-xs text-mut">Rojo = suspicion_score &gt; 0 · anillo 1 = relación directa · anillo 2 = segundo salto. Máximo 120 vecinos por nivel.</p>
         </>
       )}
     </div>

@@ -1,8 +1,15 @@
-# paridad local con la nube: un servicio, mismo :8000 (API + web)
+# demo local: restringida a localhost; feedback persiste en volumen Docker
 services:
   soc:
     build: .
     ports:
-      - "8000:8000"
+      - "${PUBLISH_IP:-127.0.0.1}:${HOST_PORT:-8000}:${PORT:-8000}"
+    volumes:
+      - soc_feedback:/app/feedback
     environment:
-      PORT: 8000
+      PORT: "${PORT:-8000}"
+      FEEDBACK_PATH: "${FEEDBACK_PATH:-/app/feedback/feedback.csv}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000}"
+
+volumes:
+  soc_feedback:

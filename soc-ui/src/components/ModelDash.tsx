@@ -28,10 +28,10 @@ export function F1Macro({ m }: { m: ModelMetrics }) {
   const ref = useChart(() => {
     const opt: Opt = {
       backgroundColor: "transparent",
-      title: title("F1-macro por modelo (test temporal)"),
+      title: title("F1-macro (M3 histórico, no comparable)"),
       grid: baseGrid,
       xAxis: { type: "value", max: 1, splitLine },
-      yAxis: { type: "category", data: ["M3 grafo", "M2 texto", "M1 tabular"], axisLine },
+      yAxis: { type: "category", data: ["M3 histórico", "M2 texto", "M1 tabular"], axisLine },
       series: [{
         type: "bar",
         data: [
@@ -48,7 +48,7 @@ export function F1Macro({ m }: { m: ModelMetrics }) {
   return (
     <section className="rounded-md border border-line bg-panel p-4">
       <div ref={ref} style={{ height: 220 }} />
-      <p className="mt-1 text-xs text-mut">M1 0.599 → M2 0.708 → M3 0.719. La ganancia viene de texto+grafo, no de más árboles.</p>
+      <p className="mt-1 text-xs text-mut">M1/M2 usan el test temporal fijo. M3 refleja una evaluación antigua con vecinos futuros (±5 min); no representa el endpoint causal ni es comparable.</p>
     </section>
   );
 }
@@ -58,10 +58,10 @@ export function MalRecall({ m }: { m: ModelMetrics }) {
     const fmt = (p: { value?: unknown }) => Number(p.value).toFixed(4);
     const opt: Opt = {
       backgroundColor: "transparent",
-      title: title("Recall malicious: el hinge del paper"),
+      title: title("Recall malicious frente a etiquetas Precinct"),
       grid: baseGrid,
       xAxis: { type: "value", max: 1, splitLine },
-      yAxis: { type: "category", data: ["M3 grafo", "M2 texto", "M1 tabular"], axisLine },
+      yAxis: { type: "category", data: ["M3 histórico", "M2 texto", "M1 tabular"], axisLine },
       series: [{
         type: "bar",
         data: [
@@ -78,7 +78,7 @@ export function MalRecall({ m }: { m: ModelMetrics }) {
   return (
     <section className="rounded-md border border-line bg-panel p-4">
       <div ref={ref} style={{ height: 220 }} />
-      <p className="mt-1 text-xs text-mut">M1 ≈ 0: el tabular no ve payload ni cadena. M2 0.97 / M3 0.96 lo rescatan. Esta es la justificación de la cascada.</p>
+      <p className="mt-1 text-xs text-mut">M1 y M2 reflejan el test temporal; M3 es una evaluación antigua no causal. M3 se consulta manualmente y no forma parte de la puntuación M1/M2.</p>
     </section>
   );
 }
@@ -88,7 +88,7 @@ export function PerClassF1({ m }: { m: ModelMetrics }) {
     const cls = ["benign", "suspicious", "malicious"];
     const opt: Opt = {
       backgroundColor: "transparent",
-      title: title("F1 por clase y modelo (trade-off)"),
+      title: title("F1 por clase frente a etiquetas Precinct"),
       grid: baseGrid,
       tooltip: { trigger: "axis" },
       legend: { bottom: 0, textStyle: { color: "#8a96a6", fontSize: 11 } },
@@ -105,7 +105,7 @@ export function PerClassF1({ m }: { m: ModelMetrics }) {
   return (
     <section className="rounded-md border border-line bg-panel p-4">
       <div ref={ref} style={{ height: 260 }} />
-      <p className="mt-1 text-xs text-mut">M1 gana suspicious (0.79); M2/M3 ganan malicious (~0.87) y pierden suspicious (~0.25-0.29). Especialistas vs generalista.</p>
+      <p className="mt-1 text-xs text-mut">Las filas de referencia son etiquetas automáticas de Precinct. La curva de M3 es histórica y no causal; no debe leerse como rendimiento del servicio actual.</p>
     </section>
   );
 }
@@ -118,7 +118,7 @@ export function PrAucMal({ m }: { m: ModelMetrics }) {
       title: title("PR-AUC malicious (ranking bajo IR 245:1)"),
       grid: baseGrid,
       xAxis: { type: "value", max: 1, splitLine },
-      yAxis: { type: "category", data: ["M3 grafo", "M2 texto", "M1 tabular"], axisLine },
+      yAxis: { type: "category", data: ["M3 histórico", "M2 texto", "M1 tabular"], axisLine },
       series: [{
         type: "bar",
         data: [
@@ -155,7 +155,7 @@ export function ConfusionM1() {
     CM.forEach((row, i) => row.forEach((v, j) => data.push([j, i, v])));
     const opt: Opt = {
       backgroundColor: "transparent",
-      title: title("M1: matriz de confusión (filas = real)"),
+      title: title("M1: matriz histórica (EDA, test n=28,212)"),
       grid: { left: 8, right: 16, top: 40, bottom: 32, containLabel: true },
       xAxis: { type: "category", data: CM_LABELS, splitArea: { show: true }, axisLine },
       yAxis: { type: "category", data: CM_LABELS, splitArea: { show: true }, axisLine },
@@ -172,7 +172,7 @@ export function ConfusionM1() {
   return (
     <section className="rounded-md border border-line bg-panel p-4">
       <div ref={ref} style={{ height: 300 }} />
-      <p className="mt-1 text-xs text-mut">Malicious colapsa a suspicious (0.9955). El tabular confunde lo raro con lo casi-raro: de ahí M2 (texto) y M3 (cadena).</p>
+      <p className="mt-1 text-xs text-mut">Cálculo antiguo del EDA contra etiquetas Precinct; no corresponde al test temporal actual ni a confirmaciones de analistas.</p>
     </section>
   );
 }
