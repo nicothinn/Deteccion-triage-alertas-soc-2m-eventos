@@ -13,8 +13,8 @@ const ECOLOR: Record<string, string> = {
   DNS_RESOLVE: "#64ffda",
   INCIDENT_LINK: "#ff003c",
 };
-const NEON = "#00ff41";
-const GLOW = "0 0 6px rgba(0,255,65,0.9)";
+const NEON = "#d7ff3e";
+const GLOW = "0 0 6px rgba(215,255,62,0.9)";
 const NODE_BG = "#020604";
 const SUGGEST: { label: string; node: string; desc: string; reading: string }[] = [
   { label: "C2 · 100.64.39.157", node: "100.64.39.157", desc: "susp 0.99 · 65 incident + 50 flow · posible C2/exfil",
@@ -57,7 +57,7 @@ export default function Graph() {
           borderColor: NEON, borderWidth: 3, width: 220,
           background: "#001a08", color: NEON,
           fontFamily: "monospace", fontSize: 12, whiteSpace: "pre-line" as const,
-          textShadow: GLOW, boxShadow: "0 0 18px rgba(0,255,65,0.45)",
+          textShadow: GLOW, boxShadow: "0 0 18px rgba(215,255,62,0.45)",
         },
       },
       ...vis.map((n) => {
@@ -79,7 +79,7 @@ export default function Graph() {
             width: 200, background: NODE_BG, color: hot ? "#ff5c7a" : NEON,
             fontFamily: "monospace", fontSize: 11, whiteSpace: "pre-line" as const,
             textShadow: hot ? "0 0 6px rgba(255,0,60,0.9)" : GLOW,
-            boxShadow: hot ? "0 0 14px rgba(255,0,60,0.4)" : "0 0 10px rgba(0,255,65,0.25)",
+            boxShadow: hot ? "0 0 14px rgba(255,0,60,0.4)" : "0 0 10px rgba(215,255,62,0.25)",
           },
         };
       }),
@@ -102,7 +102,7 @@ export default function Graph() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-[#00ff41]" style={{ textShadow: "0 0 8px rgba(0,255,65,0.7)" }}>Proveniencia_ <span className="text-xs font-normal text-mut">({depth} {depth === 1 ? "salto" : "saltos"}, layout por nivel)</span></h2>
+      <h2 className="text-lg font-semibold tracking-tight text-txt">Proveniencia <span className="text-xs font-normal text-mut">({depth} {depth === 1 ? "salto" : "saltos"}, layout por nivel)</span></h2>
       <section className="mt-2 rounded-md border border-line bg-panel p-4">
         <h3 className="font-semibold">Qué estás viendo</h3>
         <p className="mt-1 text-sm text-txt/90">
@@ -111,18 +111,12 @@ export default function Graph() {
           verde = tráfico sin sospecha registrada. Anillo 1 = vecinos directos; anillo 2 = vecinos de esos vecinos.
         </p>
         <details className="mt-2 text-sm">
-          <summary className="cursor-pointer text-[#00ff41]">Cómo leerlo (3 reglas)</summary>
+          <summary className="cursor-pointer text-acid">Cómo leerlo (3 reglas)</summary>
           <ul className="mt-1 list-disc space-y-1 pl-5 text-txt/90">
             <li><b>Concentración:</b> muchos vecinos del mismo tipo en poco tiempo = campaña, no ruido. M3 cuenta eso en ±5 min.</li>
             <li><b>Color de arista:</b> USER_ACTION (accesos) y NETWORK_FLOW (conexiones) dan contexto; INCIDENT_LINK (rojo) indica vínculo en los datos, no confirmación independiente.</li>
             <li><b>Sospecha:</b> el borde rojo hereda el suspicion del motor Precinct, no del modelo — úsalo para priorizar, confirma con Cola/Incidente.</li>
           </ul>
-        </details>
-        <details className="mt-1 text-sm">
-          <summary className="cursor-pointer text-[#00ff41]">Qué hace M3 con este vecindario</summary>
-          <p className="mt-1 text-txt/90">
-            Por evento, M3 resume el vecindario causal previo en 8 números y aplica XGBoost. La métrica publicada (F1 0.719 / recall malicious 0.96) es de una evaluación antigua no causal con ±5 min; no mide este endpoint. Usa el resultado como apoyo exploratorio, no como veredicto.
-          </p>
         </details>
       </section>
       <form className="mt-2 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); setQ(node); }}>
@@ -185,7 +179,7 @@ export default function Graph() {
               <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="#0f3d1e" bgColor="#000" />
             </ReactFlow>
           </div>
-          <p className="mt-1 text-xs text-mut">Rojo = suspicion_score &gt; 0 · anillo 1 = relación directa · anillo 2 = segundo salto. Máximo 120 vecinos por nivel.</p>
+          <p className="mt-1 text-xs text-mut">Rojo = suspicion_score &gt; 0 · anillo 1 = relación directa · anillo 2 = segundo salto. Máximo 120 vecinos por nivel. M3 resume este vecindario en 8 números; su F1 0.719 es cota no causal.</p>
         </>
       )}
     </div>

@@ -10,6 +10,7 @@ export default function Lab() {
   const rows = Object.entries(data.per_class);
   return (
     <div>
+      <p className="mb-4 text-sm text-mut">Mira M1 primero; M2 y M3 responden por qué falla. M4–M6 es el archivo de lo que no funcionó y por qué.</p>
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <div className="rounded-md border border-line bg-panel p-3">
           <p className="text-xs text-mut">Modelo</p><p className="mono text-lg font-bold">{data.model}</p>
@@ -72,6 +73,28 @@ export default function Lab() {
           </p>
           <p className="mono mt-1 text-xs text-mut">
             El grafo aporta en multilabel (T1204 F1 0.39→0.65, T1041 P 0.08→0.35) pero T1041/T1567 siguen R~0.05: ni con grafo se separan a nivel evento → hints por mapeo, no modelo — notebooks/m4c
+          </p>
+        </section>
+      )}
+
+      {data.m4t && (
+        <section className="mt-4 rounded-md border border-line bg-panel p-4">
+          <h3 className="panel-title">M4t umbrales por técnica — tuned micro {data.m4t.tuned.micro_f1} / macro {data.m4t.tuned.macro_f1} vs fijo 0.5 {data.m4t.fixed_05.micro_f1} / {data.m4t.fixed_05.macro_f1}</h3>
+          <p className="mono mt-1 text-xs text-txt/90">
+            split {data.m4t.split} · beta {data.m4t.beta} · n {data.m4t.n_train.toLocaleString()}/{data.m4t.n_val.toLocaleString()}/{data.m4t.n_test.toLocaleString()} · skipped {(data.m4t.skipped ?? []).join(", ")}
+          </p>
+          <div className="mt-2 overflow-auto">
+            <table className="soc">
+              <thead><tr><th>Técnica</th><th>Umbral</th><th>F2 val</th><th>Pos train/val</th></tr></thead>
+              <tbody>
+                {Object.entries(data.m4t.thresholds).map(([t, v]) => (
+                  <tr key={t}><td className="mono">{t}</td><td className="mono">{v.threshold}</td><td className="mono">{v.f2_val}</td><td className="mono">{v.pos_train.toLocaleString()} / {v.pos_val.toLocaleString()}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mono mt-1 text-xs text-mut">
+            Bajar el umbral cambia precisión por recall (T1041/T1567 R≈0.97 con P≈0.22); ganancia neta en macro ≈ 0 — ver notebooks/m4t.
           </p>
         </section>
       )}

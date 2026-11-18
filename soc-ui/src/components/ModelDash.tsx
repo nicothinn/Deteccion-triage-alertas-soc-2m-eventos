@@ -20,8 +20,8 @@ function useChart(setup: () => Opt, deps: unknown[]) {
 }
 
 const baseGrid = { left: 8, right: 16, top: 24, bottom: 8, containLabel: true };
-const axisLine = { lineStyle: { color: "#263242" } };
-const splitLine = { lineStyle: { color: "#263242" } };
+const axisLine = { lineStyle: { color: "#1e2a28" } };
+const splitLine = { lineStyle: { color: "#1e2a28" } };
 const title = (text: string) => ({ text, left: 8, textStyle: { fontSize: 13 } });
 
 export function F1Macro({ m }: { m: ModelMetrics }) {
@@ -35,11 +35,11 @@ export function F1Macro({ m }: { m: ModelMetrics }) {
       series: [{
         type: "bar",
         data: [
-          { value: m.m3?.f1_macro ?? 0, itemStyle: { color: "#3aa88f" } },
+          { value: m.m3?.f1_macro ?? 0, itemStyle: { color: "#2fbf8f" } },
           { value: m.m2?.f1_macro ?? 0, itemStyle: { color: "#6aa8ff" } },
-          { value: m.f1_macro, itemStyle: { color: "#d99a2b" } },
+          { value: m.f1_macro, itemStyle: { color: "#e9a13b" } },
         ],
-        label: { show: true, position: "right", color: "#e8edf2" },
+        label: { show: true, position: "right", color: "#dde7e2" },
         itemStyle: { borderRadius: [0, 4, 4, 0] },
       }],
     };
@@ -65,11 +65,11 @@ export function MalRecall({ m }: { m: ModelMetrics }) {
       series: [{
         type: "bar",
         data: [
-          { value: m.m3?.per_class["malicious"]?.recall ?? 0, itemStyle: { color: "#3aa88f" } },
+          { value: m.m3?.per_class["malicious"]?.recall ?? 0, itemStyle: { color: "#2fbf8f" } },
           { value: m.m2?.per_class["malicious"]?.recall ?? 0, itemStyle: { color: "#6aa8ff" } },
-          { value: m.per_class["malicious"]?.recall ?? 0, itemStyle: { color: "#d64545" } },
+          { value: m.per_class["malicious"]?.recall ?? 0, itemStyle: { color: "#ff4d4d" } },
         ],
-        label: { show: true, position: "right", formatter: fmt, color: "#e8edf2" },
+        label: { show: true, position: "right", formatter: fmt, color: "#dde7e2" },
         itemStyle: { borderRadius: [0, 4, 4, 0] },
       }],
     };
@@ -91,13 +91,13 @@ export function PerClassF1({ m }: { m: ModelMetrics }) {
       title: title("F1 por clase frente a etiquetas Precinct"),
       grid: baseGrid,
       tooltip: { trigger: "axis" },
-      legend: { bottom: 0, textStyle: { color: "#8a96a6", fontSize: 11 } },
+      legend: { bottom: 0, textStyle: { color: "#6e7f7a", fontSize: 11 } },
       xAxis: { type: "category", data: cls, axisLine },
       yAxis: { type: "value", max: 1, splitLine },
       series: [
-        { name: "M1", type: "bar", data: cls.map((c) => m.per_class[c]?.f1 ?? 0), itemStyle: { color: "#d99a2b" } },
+        { name: "M1", type: "bar", data: cls.map((c) => m.per_class[c]?.f1 ?? 0), itemStyle: { color: "#e9a13b" } },
         { name: "M2", type: "bar", data: cls.map((c) => m.m2?.per_class[c]?.f1 ?? 0), itemStyle: { color: "#6aa8ff" } },
-        { name: "M3", type: "bar", data: cls.map((c) => m.m3?.per_class[c]?.f1 ?? 0), itemStyle: { color: "#3aa88f" } },
+        { name: "M3", type: "bar", data: cls.map((c) => m.m3?.per_class[c]?.f1 ?? 0), itemStyle: { color: "#2fbf8f" } },
       ],
     };
     return opt;
@@ -159,11 +159,11 @@ export function ConfusionM1() {
       grid: { left: 8, right: 16, top: 40, bottom: 32, containLabel: true },
       xAxis: { type: "category", data: CM_LABELS, splitArea: { show: true }, axisLine },
       yAxis: { type: "category", data: CM_LABELS, splitArea: { show: true }, axisLine },
-      visualMap: { min: 0, max: 1, calculable: true, orient: "horizontal", left: "center", bottom: 0, textStyle: { color: "#8a96a6" }, inRange: { color: ["#121923", "#d64545"] } },
+      visualMap: { min: 0, max: 1, calculable: true, orient: "horizontal", left: "center", bottom: 0, textStyle: { color: "#6e7f7a" }, inRange: { color: ["#0c1114", "#ff4d4d"] } },
       series: [{
         type: "heatmap",
         data,
-        label: { show: true, color: "#e8edf2", fontSize: 12, formatter: (p) => Array.isArray(p.value) ? Number(p.value[2]).toFixed(2) : "" },
+        label: { show: true, color: "#dde7e2", fontSize: 12, formatter: (p) => Array.isArray(p.value) ? Number(p.value[2]).toFixed(2) : "" },
         emphasis: { itemStyle: { shadowBlur: 8 } },
       }],
     };

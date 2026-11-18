@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable, type SortingState } from "@tanstack/react-table";
 import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { api, parseIncidentIds, type QueueFilters, type SocEvent } from "../lib/api";
@@ -11,7 +12,30 @@ const PAGE_SIZE = 60;
 const EMPTY_EVENTS: SocEvent[] = [];
 const EMPTY_DRAFT = { label: "all", org_id: "", message_type: "", severity: "", search: "", from: "", to: "" };
 
+// ponytail: listas medidas del parquet (orgs 4, severidades 10, top 30 tipos por volumen;
+// hay 595 tipos en total — los raros se buscan con "Buscar ID, IP, host o regla")
+const ORGS = ["ORG-0001", "ORG-0003", "ORG-0004", "ORG-0005"];
+const TYPES = ["security_audit_event", "management_message", "java_error", "4662", "5156",
+  "firewall_action", "4658", "GetLogEvents", "AssumeRole", "unknown", "DescribeInstanceStatus",
+  "audit_log", "4656", "4690", "dns_event", "DescribeInstances", "DescribeLoadBalancers",
+  "network_flow_data", "ListClusters", "DescribeAccountAttributes", "GET", "GetBucketAcl",
+  "UpdateInstanceInformation", "ListFunctions20150331", "pam_event", "DescribeVolumes",
+  "DescribeClusters", "DescribeVpcs", "account_logon", "GetBucketMetricsConfiguration"];
+const SEVS = ["Info", "Start", "alert", "critical", "debug", "error", "informational", "notice", "warning"];
+const selCls = "mt-1 w-full rounded border border-line bg-ink px-2 py-1.5 text-sm text-txt";
+
+const col = createColumnHelper<SocEvent>();
+const COLS = [
+  col.display({ id: "sev", header: "", cell: (c) => <span className={`sev-ico ${c.row.original.label_binary}`} title={c.row.original.label_binary} /> }),
+  col.accessor("timestamp", { header: "Hora UTC", cell: (c) => <span className="whitespace-nowrap">{ts(c.row.original)}</span> }),
+  col.accessor("message_type", { header: "Tipo" }),
+  col.accessor("src_ip", { header: "Origen", cell: (c) => c.getValue() || "—" }),
+  col.accessor("action", { header: "Acción", cell: (c) => c.getValue() || "—", enableSorting: false }),
+  col.accessor("label_binary", { header: "Etiqueta" }),
+];
+
 export default function Queue() {
+  const [sorting, setSorting] = useState<SortingState>([]);
   const [draft, setDraft] = useState(EMPTY_DRAFT);
   const [filterError, setFilterError] = useState("");
   const [filters, setFilters] = useState<QueueFilters>({ label: "all", org_id: "", message_type: "", severity: "", search: "" });
@@ -30,6 +54,7 @@ export default function Queue() {
   const [fbNote, setFbNote] = useState("");
   const [fbMsg, setFbMsg] = useState("");
 
+  const table = useReactTable({ data: events, columns: COLS, state: { sorting }, onSortingChange: setSorting, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel() });
   const ev = useMemo(() => events.find((d) => d.artifact_id === sel) ?? events[0], [events, sel]);
   const incs = ev ? parseIncidentIds(ev.incident_ids) : [];
 
@@ -104,7 +129,7 @@ export default function Queue() {
           Filtra la muestra y puntúa cada evento a la derecha; los datos vienen de <span className="mono">/queue</span>.
         </p>
         <details className="mt-2 text-sm">
-          <summary className="cursor-pointer text-[#00ff41]">Cómo se puntúa (M1 + M2; M3 manual)</summary>
+          <summary className="cursor-pointer text-acid">Cómo se puntúa (M1 + M2; M3 manual)</summary>
           <ul className="mt-1 list-disc space-y-1 pl-5 text-txt/90">
             <li><b>M1 tabular</b> y <b>M2 texto</b> puntúan el evento seleccionado; sus métricas reflejan el test temporal, no garantía de acierto en producción.</li>
             <li>La cola muestra etiquetas Precinct del dataset; no son la salida de esos modelos hasta que pulses Puntuar.</li>
@@ -112,6 +137,17 @@ export default function Queue() {
             <li><b>Técnicas ATT&CK</b> vienen del tier decidido (mapeo oráculo, no predicción aprendida): malicious → T1190+T1041+T1567.</li>
             <li><b>Feedback:</b> guarda una decisión para revisión y entrenamiento posterior; no reentrena automáticamente.</li>
           </ul>
+        </details>
+        <details className="mt-2 text-sm">
+          <summary className="cursor-pointer text-acid">Qué técnicas y tácticas verás (ATT&CK)</summary>
+          <p className="mt-1 text-txt/90">Vienen del tier Precinct (mapeo oráculo), no de un modelo: malicious → T1190+T1041+T1567, suspicious → T1190. T1078/T1486/T1566 no aparecen en esta ventana live.</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-txt/90">
+            <li><b className="mono">T1190</b> explotar una aplicación pública — la puerta de entrada; está en las 114,507 threat.</li>
+            <li><b className="mono">T1041</b> exfiltración por canal C2 — 7,742 filas; sacar datos por el canal de mando y control.</li>
+            <li><b className="mono">T1567</b> exfiltración por servicio web — 7,728 filas, todas las malicious; usa servicios legítimos para sacar datos.</li>
+            <li><b className="mono">T1204</b> ejecución por el usuario — 20 malicious; alguien abrió el adjunto o el enlace.</li>
+          </ul>
+          <p className="mt-1 text-txt/90">Tácticas (el “por qué”): <b className="mono">TA0001</b> acceso inicial y <b className="mono">TA0002</b> ejecución en las suspicious; las malicious añaden <b className="mono">TA0009</b> recolección y <b className="mono">TA0010</b> exfiltración. <b className="mono">TA0040</b> impacto solo existe en el histórico.</p>
         </details>
       </section>
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_1fr]">
@@ -127,13 +163,23 @@ export default function Queue() {
             </select>
           </label>
           <label className="text-xs text-mut">Organización
-            <input value={draft.org_id} onChange={(e) => setDraft({ ...draft, org_id: e.target.value })} placeholder="ORG-0004" className="mt-1 w-full rounded border border-line bg-ink px-2 py-1.5 text-sm text-txt" />
+            <select value={draft.org_id} onChange={(e) => setDraft({ ...draft, org_id: e.target.value })} className={selCls}>
+              <option value="">todas</option>
+              {ORGS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
           </label>
           <label className="text-xs text-mut">Tipo de evento
-            <input value={draft.message_type} onChange={(e) => setDraft({ ...draft, message_type: e.target.value })} placeholder="firewall_action" className="mt-1 w-full rounded border border-line bg-ink px-2 py-1.5 text-sm text-txt" />
+            <select value={draft.message_type} onChange={(e) => setDraft({ ...draft, message_type: e.target.value })} className={selCls}>
+              <option value="">todos (top 30)</option>
+              {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
           </label>
           <label className="text-xs text-mut">Severidad
-            <input value={draft.severity} onChange={(e) => setDraft({ ...draft, severity: e.target.value })} placeholder="warning" className="mt-1 w-full rounded border border-line bg-ink px-2 py-1.5 text-sm text-txt" />
+            <select value={draft.severity} onChange={(e) => setDraft({ ...draft, severity: e.target.value })} className={selCls}>
+              <option value="">todas</option>
+              <option value="__vacia__">(vacía — 49%)</option>
+              {SEVS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
           </label>
           <label className="text-xs text-mut">Desde (UTC)
             <input type="date" value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} className="mt-1 w-full rounded border border-line bg-ink px-2 py-1.5 text-sm text-txt" />
@@ -152,22 +198,19 @@ export default function Queue() {
         {filterError && <p role="alert" className="mb-2 text-sm text-mal">{filterError}</p>}
         {isLoading && <p className="text-sm text-mut">Cargando cola desde FastAPI…</p>}
         {error && <p role="alert" className="text-sm text-mal">No se pudo cargar la cola: {error instanceof Error ? error.message : "error desconocido"}</p>}
-        <div className="overflow-auto rounded-md border border-line bg-panel" style={{ maxHeight: 560 }}>
+        <div className="radius-table overflow-auto border border-line bg-panel" style={{ maxHeight: 560 }}>
           <table className="soc">
-            <thead><tr><th>#</th><th>Sev</th><th>Hora UTC</th><th>Tipo</th><th>Origen</th><th>Acción</th><th>Etiqueta</th></tr></thead>
+            <thead><tr>{table.getHeaderGroups()[0]?.headers.map((h) => (
+              <th key={h.id} onClick={h.column.getCanSort() ? h.column.getToggleSortingHandler() : undefined}
+                  className={h.column.getCanSort() ? "cursor-pointer select-none" : ""}>
+                {flexRender(h.column.columnDef.header, h.getContext())}{h.column.getIsSorted() === "asc" ? " ↑" : h.column.getIsSorted() === "desc" ? " ↓" : ""}
+              </th>))}</tr></thead>
             <tbody>
-              {events.map((e, i) => (
-                <tr key={e.artifact_id} onClick={() => { setSel(e.artifact_id); setScore(null); setExpl(null); setG3(null); setFbMsg(""); }}
-                    className={ev?.artifact_id === e.artifact_id ? "sel" : ""}>
-                  <td className="mono text-mut">{offset + i + 1}</td>
-                  <td className={`sevbar ${e.label_binary}`}><span className={`sev-ico ${e.label_binary}`} title={e.label_binary} /></td>
-                  <td className="mono whitespace-nowrap">{ts(e)}</td>
-                  <td className="mono">{e.message_type}</td>
-                  <td className="mono">{e.src_ip || "—"}</td>
-                  <td>{e.action || "—"}</td>
-                  <td className="mono">{e.label_binary}</td>
-                </tr>
-              ))}
+              {table.getRowModel().rows.map((r) => (
+                <tr key={r.original.artifact_id} onClick={() => { setSel(r.original.artifact_id); setScore(null); setExpl(null); setG3(null); setFbMsg(""); }}
+                    className={ev?.artifact_id === r.original.artifact_id ? "sel" : ""}>
+                  {r.getVisibleCells().map((cell) => <td key={cell.id} className="font-mono">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}
+                </tr>))}
             </tbody>
           </table>
           {!isLoading && events.length === 0 && <p className="p-4 text-sm text-mut">No hay eventos con estos filtros.</p>}
@@ -181,10 +224,16 @@ export default function Queue() {
         </div>
       </section>
 
-      <section className="rounded-md border border-line bg-panel p-4">
-        <h2 className="text-lg font-semibold">Detalle y puntuación</h2>
+      <section className="radius-panel border border-line bg-panel p-4">
+        <h2 className="text-lg font-semibold tracking-tight">Detalle y puntuación</h2>
+        <p className="mt-1 text-xs text-mut">Rombo = actúa · cuadro = mira · punto = ruido. El color repite la etiqueta Precinct.</p>
         {!ev ? <p className="text-sm text-mut">Elige una fila.</p> : (
           <>
+            <div className="tape mt-3" aria-label="tier Precinct">
+              <span className={`t-ben ${ev.label_binary === "benign" ? "t-on" : ""}`}>benign</span>
+              <span className={`t-sus ${ev.label_binary === "suspicious" ? "t-on" : ""}`}>suspicious</span>
+              <span className={`t-mal ${ev.label_binary === "malicious" ? "t-on" : ""}`}>malicious</span>
+            </div>
             <p className="mono mt-2 break-all text-xs text-mut">{ev.artifact_id}</p>
             <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
               <dt className="text-mut">Tipo</dt><dd className="mono">{ev.message_type}</dd>
@@ -200,9 +249,10 @@ export default function Queue() {
             {incs.length > 0 && (
               <p className="mt-2 text-sm">Incidente: <Link className="mono underline" to={`/incidente/${incs[0]}`}>{incs[0].slice(0, 8)}</Link></p>
             )}
+            <p className="mt-3 text-xs text-mut">Escala si sale malicious, o suspicious con action block. Lo demás se monitorea.</p>
             <button
               onClick={runScore} disabled={scoring}
-              className="mt-3 w-full rounded-md bg-txt py-2 text-sm font-bold text-ink disabled:opacity-50">
+              className="mt-2 w-full rounded-md bg-txt py-2 text-sm font-bold text-ink disabled:opacity-50">
               {scoring ? "Puntuando…" : "Puntuar con M1"}
             </button>
             {score && (

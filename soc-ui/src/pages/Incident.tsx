@@ -55,7 +55,7 @@ export default function Incident() {
           En cada página, la cadena visual muestra hasta 10 eventos y la tabla hasta 30, en orden temporal. El reporte resume el MO (aquí casi todo es <b>Data Theft</b>).
         </p>
         <details className="mt-2 text-sm">
-          <summary className="cursor-pointer text-[#00ff41]">Cómo leer la cadena</summary>
+          <summary className="cursor-pointer text-acid">Cómo leer la cadena</summary>
           <ul className="mt-1 list-disc space-y-1 pl-5 text-txt/90">
             <li>Lee de izquierda a derecha: es orden temporal, no topología.</li>
             <li>El color muestra la etiqueta automática de Precinct (rojo = malicious); no equivale a confirmación de un analista.</li>
@@ -110,6 +110,7 @@ export default function Incident() {
               <button disabled={offset + data.events.length >= data.n || isLoading} onClick={() => setOffset(offset + EVENT_PAGE_SIZE)} className="rounded border border-line px-3 py-1 disabled:opacity-40">Siguiente</button>
             </div>
           </div>
+          <p className="mt-1 text-xs text-mut">La cadena muestra hasta 10 eventos; la tabla, 30 por página. Nada aquí es confirmación de analista.</p>
           <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
             <section className="overflow-auto rounded-md border border-line bg-panel" style={{ maxHeight: 320 }}>
               <table className="soc">

@@ -44,7 +44,7 @@ STATS = {"total": 2011674, "benign": 1897153, "suspicious": 106793, "malicious":
                        "java_error": 154491, "4662": 115553, "5156": 101277,
                        "firewall_action": 95062},
          "top_orgs": {"ORG-0004": 995985, "ORG-0005": 576817, "ORG-0003": 433904, "ORG-0001": 4968},
-         "top_tech": {"T1190": 6120, "T1078": 890, "T1041": 410},
+         "top_tech": {"T1190": 7728, "T1041": 7728, "T1567": 7728, "T1204": 20},
          "severity": {"vacia": 991253, "informational": 479472, "Info": 427432,
                       "warning": 95150, "notice": 17699, "error": 616},
          "disposition": {"Unprocessed": 2005877, "Disrupted": 5779, "Open": 15, "Cold Case": 3},
@@ -363,6 +363,9 @@ def vecindario(node: str, tipos: str = "", limit: int = Query(60, ge=1, le=120),
 def filter_queue_frame(df: pd.DataFrame, *, label="all", org_id="", message_type="", severity="",
                        search="", start_ts=None, end_ts=None):
     out = df
+    if severity == "__vacia__":
+        out = out[out["severity"].fillna("") == ""]
+        severity = ""
     for column, value in (("label_binary", label), ("org_id", org_id),
                           ("message_type", message_type), ("severity", severity)):
         if value and value != "all" and column in out:

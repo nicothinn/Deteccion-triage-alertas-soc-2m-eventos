@@ -20,7 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
 WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-editable
+# ponytail: timeout alto porque nvidia-nccl-cu12 (dep GPU de xgboost) pesa 335MB
+RUN UV_HTTP_TIMEOUT=300 uv sync --frozen --no-dev --no-editable
 COPY app/ ./app/
 COPY src/ ./src/
 COPY data/signals/signals.parquet ./data/signals/signals.parquet

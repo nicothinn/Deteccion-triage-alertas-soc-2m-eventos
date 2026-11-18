@@ -13,8 +13,8 @@ export default function Bar({ title, note, data, color, height = 260 }: {
     ch.setOption({
       backgroundColor: "transparent",
       grid: { left: 8, right: 8, top: 8, bottom: 8, containLabel: true },
-      xAxis: { type: "value", splitLine: { lineStyle: { color: "#263242" } } },
-      yAxis: { type: "category", data: entries.map(([k]) => k), axisLine: { lineStyle: { color: "#263242" } } },
+      xAxis: { type: "value", splitLine: { lineStyle: { color: "#1e2a28" } } },
+      yAxis: { type: "category", data: entries.map(([k]) => k), axisLine: { lineStyle: { color: "#1e2a28" } } },
       series: [{ type: "bar", data: entries.map(([, v]) => v), itemStyle: { color, borderRadius: [0, 4, 4, 0] } }],
     });
     const onR = () => ch.resize();
@@ -22,7 +22,7 @@ export default function Bar({ title, note, data, color, height = 260 }: {
     return () => { window.removeEventListener("resize", onR); ch.dispose(); };
   }, [data, color]);
   return (
-    <section className="rounded-md border border-line bg-panel p-4">
+    <section className="radius-panel border border-line bg-panel p-4">
       <h3 className="font-semibold">{title}</h3>
       <div ref={ref} style={{ height }} />
       <p className="mt-1 text-xs text-mut">{note}</p>
