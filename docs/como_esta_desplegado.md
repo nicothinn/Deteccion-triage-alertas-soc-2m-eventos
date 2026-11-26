@@ -154,6 +154,30 @@ Nada de esto afecta la inferencia: los modelos son los entrenados.
 | **Cobertura** | `/stats` | cobertura ATT&CK de las etiquetas |
 | **Lab** | `/model/metrics` | métricas de M1–M6 |
 
+### Dónde se ejecuta un modelo (y dónde no)
+
+La inferencia vive **solo** en Cola → panel derecho "Detalle y puntuación". Pasos exactos:
+
+1. Pestaña **Cola** (`/`).
+2. Click en una fila de la tabla.
+3. Baja en el panel derecho hasta el botón **"Puntuar con M1"** (queda debajo de la leyenda de triage).
+4. Ese botón dispara **dos** llamadas: `POST /score` (M1 + M2 en cascada) y `POST /explain`.
+5. Aparecen: etiqueta → triage, probabilidades, `m1-tabar-v1`, la línea `M2 texto: ...`, el bloque
+   "Por qué dice X" y el botón **"Consultar vecindario M3 (grafo)"** → `POST /score_graph`.
+6. Al final: `escalar / monitorear / falso_positivo` → `POST /feedback`.
+
+El resto de pestañas **no ejecuta modelos**: Panorama y Cobertura leen `/stats`, Incidente lee
+`/incident/{id}`, Grafo consulta `/graph/vecindario`, Lab lee `/model/metrics`.
+
+**Probar con texto libre:** la UI no tiene campo para inventar un evento, solo puntúa filas
+existentes. Para eso está Swagger, que FastAPI expone sin código extra:
+
+```
+https://soc-precinct6.onrender.com/docs   →   POST /score   →   Try it out
+```
+
+Ahí se puede enviar `message_type`, `action` y `message` a mano.
+
 ### Cola (`/`) — aquí se toca el modelo
 
 1. **Filtros**: `Etiqueta`, `Organización`, `Tipo de evento`, `Severidad`, fechas y búsqueda por
@@ -169,7 +193,58 @@ Nada de esto afecta la inferencia: los modelos son los entrenados.
 5. **Feedback** (`escalar` / `monitorear` / `falso_positivo` + nota) → `POST /feedback`,
    escribe una fila en CSV. No reentrena: es un registro para revisión.
 
-## 7. Guion de demo (7–8 min)
+## 7. ¿Qué pasa con el recall?
+
+Es la pregunta más incómoda de la defensa. Respuesta corta: **el modelo aprende bien
+"sospechoso" y casi nunca "malicioso", porque `malicious` no es una propiedad de la fila sino
+del contexto en que esa fila aparece.**
+
+### Los números (test temporal futuro, 574,132 eventos)
+
+| Clase | Soporte | Precisión | Recall | F1 | PR-AUC |
+|---|---|---|---|---|---|
+| benign | 559,030 | 1.00 | 1.00 | 1.00 | 1.00 |
+| suspicious | 11,550 | 0.76 | **0.99** | 0.86 | 0.76 |
+| malicious | 3,552 | 0.23 | **0.0107** | 0.02 | 0.23 |
+
+Traducido: de 3,552 eventos realmente maliciosos, M1 marca correctamente **38** (1.07 %);
+M2, **7** (0.2 %). Pero de 11,550 sospechosos, M1 detecta **11,417** (98.9 %). El F1-macro 0.6276
+sale de promediar 1.00 (benign), 0.86 (suspicious) y 0.02 (malicious): **todo el daño está en
+`malicious`**.
+
+### Por qué ocurre
+
+1. **La etiqueta es del motor de correlación, no de la fila.** `malicious` significa "esta señal es
+   un lead dentro de un incidente observado", decidido por las 261 reglas de Precinct más la
+   correlación entre eventos, cuentas y hosts. Una fila aislada casi nunca contiene esa evidencia.
+   `suspicious` significa "coincide con una regla": eso **sí** se aprende de los campos de la fila.
+   De ahí el 0.99 contra el 0.01.
+2. **Split temporal sin fuga.** Train < 2024-07-29, test 2024-07-29→31, con **0 incidentes
+   compartidos** (1515/69). Las campañas maliciosas de la captura terminan el 30 de julio; lo que
+   hay en test son campañas nuevas, no repeticiones. Un modelo de features de fila no las reconoce.
+3. **El 0.97 antiguo era fuga temporal.** Con `sample-then-split` el mismo incidente caía a la vez
+   en train y test y el modelo memorizaba la campaña. Ese resultado está retirado.
+4. **La señal existe, pero en el ranking, no en el umbral.** PR-AUC malicioso 0.2333 contra una
+   prevalencia de 0.62 %: ~37× mejor que el azar. Y `recall@1%FPR` de M2 = **0.4344**: si aceptas
+   marcar 1 % de los benignos (≈5,590 falsos positivos), recuperas el **43 %** de los maliciosos.
+   Por eso M2 no se usa como disparador sino para **ordenar la cola**.
+5. **M3 muestra de dónde viene la señal que falta.** Con vecindario (contexto de host/credencial) el
+   recall malicioso sube a **0.96** (versión ±5 min, que incluye futuro: cota, no producción). La
+   ventana causal `[t-300s, t)` llega a 0.99 de recall malicioso en muestra balanceada, a cambio de
+   bajar el recall de suspicious a ~0.07 (notebook 03). Es otro punto de operación, no un modelo
+   estrictamente mejor.
+6. **El desbalance agrava la lectura.** 0.62 % de maliciosos en test: predecir siempre `benign` da
+   97.4 % de accuracy, una métrica vacua. Por eso se reporta F1-macro y PR-AUC.
+
+### Qué significa para la demo
+
+Al pulsar **"Puntuar con M1"** sobre una fila `malicious`, lo normal es que el modelo responda
+`benign` o `suspicious`. **Eso es el hallazgo del proyecto, no un fallo:** los campos de una sola
+señal no bastan para confirmar un incidente. La consola no automatiza la detección; prioriza
+volumen (suspicious con recall 0.99) y reúne contexto (ranking de M2, vecindario de M3) para que el
+analista decida.
+
+## 8. Guion de demo (7–8 min)
 
 **Antes de empezar:** abre la página 2 minutos antes. El plan free duerme a los 15 min y el
 primer request tarda ~50 s o más.
@@ -193,7 +268,7 @@ primer request tarda ~50 s o más.
 M3 tiene F1 0.7186 en producción. Las técnicas que muestra la cola son el mapeo tier→técnica
 (oráculo), no una predicción multilabel aprendida.
 
-## 8. Operación
+## 9. Operación
 
 | Tarea | Cómo |
 |---|---|
@@ -213,7 +288,7 @@ curl https://soc-precinct6.onrender.com/health
 archivos efímero (el CSV de feedback se pierde al reiniciar) · Render puede reiniciar el servicio
 en cualquier momento.
 
-## 9. Descartado
+## 10. Descartado
 
 - **Vercel**: el `Dockerfile` ya compila y sirve el front; un segundo deploy solo añadía CORS,
   manejo de ramas y un punto más de fallo.
