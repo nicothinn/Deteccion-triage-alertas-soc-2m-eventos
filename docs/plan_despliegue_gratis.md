@@ -1,6 +1,7 @@
 # Plan de despliegue gratuito
 
 Rama: `feature-nicolas/deploy-free-tier` (no toca `main`).
+Esta rama contiene solo lo necesario para construir la imagen; el proyecto completo vive en `main`.
 Objetivo: URL pública estable a **$0**, con la consola SOC funcionando.
 
 ---
