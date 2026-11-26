@@ -4,6 +4,9 @@ Rama: `feature-nicolas/deploy-free-tier` (no toca `main`).
 Esta rama contiene solo lo necesario para construir la imagen; el proyecto completo vive en `main`.
 Objetivo: URL pública estable a **$0**, con la consola SOC funcionando.
 
+**Estado: desplegado y verificado.** https://soc-precinct6.onrender.com — deploy `31ed027`,
+modelos reales cargados (m1 0.6276 · m2 0.6232 · m3 0.7186 F1-macro).
+
 ---
 
 ## 1. La restricción que manda: memoria
@@ -21,18 +24,19 @@ gratuito sirve; con un sample compacto entra en 512 MB.
 
 ## 2. Arquitectura elegida
 
+Un solo servicio: el `Dockerfile` compila el React y lo sirve desde FastAPI en el mismo puerto
+(`COPY --from=web /w/dist ./soc-ui/dist`). No hay CORS ni segundo deploy.
+
 ```
-Navegador
-   │
-   ├─► Vercel (Hobby, $0)          ── soc-ui/dist, estático, nunca duerme
-   │
-   └─► Render (free, $0)           ── FastAPI + m1/m2/m3 + samples
-        512 MB · 0.1 CPU · duerme a los 15 min · despierta en ~1 min
-        https://<servicio>.onrender.com
+Navegador ──► Render (free, $0)
+              FastAPI + soc-ui/dist + m1/m2/m3 + samples
+              512 MB · 0.1 CPU · duerme a los 15 min · despierta en ~50 s
+              https://soc-precinct6.onrender.com
 ```
 
-Ventajas: sin tarjeta de crédito, URL permanente, TLS incluido.
+Ventajas: una sola URL, sin CORS, sin tarjeta, TLS incluido.
 Costo real: $0. Cuota Render: 750 instance-hours/mes (un servicio encendido todo el mes son 744).
+Build medido: 2 m 49 s (Docker, plan free).
 
 ## 3. Qué se despliega
 
@@ -91,24 +95,27 @@ SIGNALS_PATH=/app/data/signals/signals_sample.parquet
 EDGES_PATH=/app/data/graph/edges_sample.parquet
 ```
 
-### 5.3 Vercel (front) — sin tarjeta
+### 5.3 Vercel (opcional, no necesario)
 
-1. vercel.com → **Add New** → **Project** → importar el repo.
-2. **Root Directory:** `soc-ui` · Framework: Vite · Build: `npm run build` · Output: `dist`.
-3. Environment Variable: `VITE_API_URL = https://soc-precinct6.onrender.com`.
-4. Deploy. Anotar el dominio: `https://<proyecto>.vercel.app`.
+La imagen ya incluye el front compilado, así que Render sirve API y web en la misma URL.
+Solo si quieres el front estático separado:
 
-> Vercel Hobby es solo para uso personal/no comercial. Un proyecto de curso cumple.
+1. Import del repo → **Import single project** en `soc-ui` (nunca en `app`).
+2. Root Directory `soc-ui` · Framework Vite · Output `dist`.
+3. `VITE_API_URL = https://soc-precinct6.onrender.com`.
+4. La rama de producción no se elige al importar: se cambia después en
+   Settings → Git → Production Branch (`feature-nicolas/deploy-free-tier`).
 
-### 5.4 CORS (obligatorio, si no el front no lee la API)
+> `soc-ui/vercel.json` (rewrite SPA) solo existe en la rama de deploy. Sin él, refrescar
+> `/panorama` devuelve 404.
 
-En Render → Environment → editar:
+### 5.4 CORS
+
+Con el front servido por Render **no hace falta** (mismo origen). Solo si usas Vercel:
 
 ```
 CORS_ORIGINS=https://<proyecto>.vercel.app
 ```
-
-Guardar: Render redepliega solo.
 
 ### 5.5 Verificación
 
@@ -165,7 +172,6 @@ depender del cold start de Render.
 | Servicio | Plan | Costo |
 |---|---|---|
 | Render | Free (512 MB, 750 h/mes) | $0 |
-| Vercel | Hobby | $0 |
 | GitHub | repo público | $0 |
 | **Total** | | **$0** |
 
