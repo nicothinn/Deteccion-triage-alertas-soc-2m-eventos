@@ -24,8 +24,9 @@ COPY pyproject.toml uv.lock ./
 RUN UV_HTTP_TIMEOUT=300 uv sync --frozen --no-dev --no-editable
 COPY app/ ./app/
 COPY src/ ./src/
-COPY data/signals/signals.parquet ./data/signals/signals.parquet
-COPY data/graph/nodes.parquet data/graph/edges-00000.parquet data/graph/attack_reports.parquet ./data/graph/
+# ponytail: wildcard para que el build no falle si aún no existe el sample de 512MB
+COPY data/signals/*.parquet ./data/signals/
+COPY data/graph/*.parquet ./data/graph/
 COPY models/m1.pkl models/m2.pkl models/m3.pkl ./models/
 COPY models/*.json ./models/
 COPY --from=web /w/dist ./soc-ui/dist

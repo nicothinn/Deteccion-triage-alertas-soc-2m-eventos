@@ -1,0 +1,17 @@
+# Render free (512MB): usa los samples de src/make_sample.py
+# Deploy: conectar el repo en Render -> Blueprint, o copiar estos valores a mano.
+services:
+  - type: web
+    name: soc-precinct6
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: SIGNALS_PATH
+        value: /app/data/signals/signals_sample.parquet
+      - key: EDGES_PATH
+        value: /app/data/graph/edges_sample.parquet
+      # cambia esto por tu dominio real de Vercel/Cloudflare Pages
+      - key: CORS_ORIGINS
+        value: https://TU-FRONT.vercel.app

@@ -23,6 +23,16 @@ soc-ui/dist/
 # runtime
 data/feedback.csv
 
+# deploy (Render/Vercel): artefactos minimos que la imagen necesita, ~27MB total
+# el dataset completo sigue fuera del repo
+!data/signals/signals_sample.parquet
+!data/graph/edges_sample.parquet
+!data/graph/nodes.parquet
+!data/graph/attack_reports.parquet
+!models/m1.pkl
+!models/m2.pkl
+!models/m3.pkl
+
 # agente: planes/specs locales (no es contenido del proyecto)
 docs/superpowers/
 

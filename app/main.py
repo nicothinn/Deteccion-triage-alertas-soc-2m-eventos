@@ -32,7 +32,9 @@ TIER_TECH = {
 }
 TECH_SRC = "tier-mapping M4-oracle (micro-F1 0.9994 test temporal)"
 BASELINE = {"f1_macro": 0.599, "n_train": 112848, "note": "M1 tabular, split temporal 80/20, IR 245:1"}
-SIG = ROOT / "data" / "signals" / "signals.parquet"
+# ponytail: rutas por env para modo lite en hosts de 512MB (genera con src/make_sample.py)
+SIG = Path(os.getenv("SIGNALS_PATH", str(ROOT / "data" / "signals" / "signals.parquet")))
+EDGES = Path(os.getenv("EDGES_PATH", str(ROOT / "data" / "graph" / "edges-00000.parquet")))
 REP = ROOT / "data" / "graph" / "attack_reports.parquet"
 QCOLS = ["artifact_id", "timestamp", "message_type", "stream_name", "pipeline",
          "product_name", "vendor_name", "src_ip", "dst_ip", "src_host", "dst_host",
@@ -230,7 +232,8 @@ def score_graph(g: GraphIn):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "model": MODEL["name"], "loaded": MODEL["pipe"] is not None,
+    return {"ok": True, "signals": SIG.name, "edges": EDGES.name,
+            "model": MODEL["name"], "loaded": MODEL["pipe"] is not None,
             "m2": MODEL["m2name"], "m2_loaded": MODEL["m2"] is not None,
             "m3": MODEL["m3name"], "m3_loaded": MODEL["m3"] is not None}
 
@@ -331,7 +334,7 @@ def graph_neighborhood(edges: pd.DataFrame, node: str, *, depth: int, limit: int
 def vecindario(node: str, tipos: str = "", limit: int = Query(60, ge=1, le=120),
                depth: int = Query(1, ge=1, le=2)):
     # ponytail: máximo 120 vecinos por nivel; profundidad limitada a 2
-    gf = ROOT / "data" / "graph" / "edges-00000.parquet"
+    gf = EDGES
     nf = ROOT / "data" / "graph" / "nodes.parquet"
     if not gf.exists():
         raise HTTPException(404, "grafo no disponible")
@@ -397,6 +400,8 @@ def queue(response: Response, label: str = "all", org_id: str = Query("", max_le
           offset: int = Query(0, ge=0)):
     if label not in {"all", "benign", "suspicious", "malicious"}:
         raise HTTPException(422, "label no válida")
+    if not SIG.exists():
+        raise HTTPException(503, f"señales no disponibles: falta {SIG.name} (genera src/make_sample.py)")
     if start_ts is not None and end_ts is not None and start_ts >= end_ts:
         raise HTTPException(422, "start_ts debe ser menor que end_ts")
     df = pd.read_parquet(SIG, columns=QCOLS)
@@ -417,6 +422,8 @@ def incident_page_frame(df: pd.DataFrame, inc_id: str, *, offset: int, limit: in
 
 @app.get("/incident/{inc_id}")
 def incident(inc_id: str, limit: int = Query(30, ge=1, le=200), offset: int = Query(0, ge=0)):
+    if not SIG.exists():
+        raise HTTPException(503, f"señales no disponibles: falta {SIG.name} (genera src/make_sample.py)")
     df = pd.read_parquet(SIG)
     total, ev = incident_page_frame(df, inc_id, offset=offset, limit=limit)
     rep = None
